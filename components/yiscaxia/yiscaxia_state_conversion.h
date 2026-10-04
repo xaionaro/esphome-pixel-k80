@@ -39,11 +39,14 @@ inline bool rgb_to_state(float red, float green, float blue, float intensity,
 
 inline bool ct_to_state(float mireds, float intensity,
     const k80_controller_state &previous, k80_controller_state *output) {
-  if (!output || !std::isfinite(mireds) || mireds < 100 || mireds > 1000000.0f / 2600) return false;
+  if (!output || !std::isfinite(mireds) || mireds < 1000000.0f / static_cast<float>(K80_CT_KELVIN_MAX) ||
+      mireds > 1000000.0f / static_cast<float>(K80_CT_KELVIN_MIN)) return false;
   k80_controller_state next = previous;
   if (!brightness_to_level(intensity, &next.level)) return false;
   next.mode = K80_CONTROLLER_MODE_CCT;
-  next.ct_index = static_cast<int>(std::floor((1000000.0f / mireds - 2600) / 100 + .5f));
+  next.ct_index = static_cast<int>(std::floor(
+      (1000000.0f / mireds - static_cast<float>(K80_CT_KELVIN_MIN)) /
+          static_cast<float>(K80_CT_KELVIN_STEP) + .5f));
   *output = next;
   return true;
 }

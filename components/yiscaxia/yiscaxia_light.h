@@ -72,8 +72,8 @@ class YiscaxiaLightOutput final : public light::LightOutput {
     auto traits = light::LightTraits();
     if (k80_controller_profile_is_native(this->profile_)) {
       traits.set_supported_color_modes({light::ColorMode::RGB, light::ColorMode::COLOR_TEMPERATURE});
-      traits.set_min_mireds(100);
-      traits.set_max_mireds(1000000.0f / 2600);
+      traits.set_min_mireds(1000000.0f / static_cast<float>(K80_CT_KELVIN_MAX));
+      traits.set_max_mireds(1000000.0f / static_cast<float>(K80_CT_KELVIN_MIN));
     } else if (this->profile_ != K80_CONTROLLER_SEMANTIC_PROFILE_NONE) {
       traits.set_supported_color_modes({light::ColorMode::BRIGHTNESS});
     }

@@ -25,12 +25,12 @@ int main() {
     CHECK(std::memcmp(previous, storage, sizeof(storage)) == 0);
     CHECK(queue.count == before.count && queue.pending == before.pending);
   }
-  storage[0].level = 10;
+  storage[0].state.level = 10;
   CHECK(k80_controller_config::replace_addresses(&queue, "0:0,2:1,2:2,2:3,2:4,3:5"));
-  CHECK(storage[0].level == 10 && storage[5].slot == 3);
+  CHECK(storage[0].state.level == 10 && storage[5].slot == 3);
   CHECK(!k80_controller_config::replace_addresses(&queue, "1:0,2:1,2:2,2:3,2:4,4:5"));
   CHECK(k80_controller_config::replace_addresses(&queue, "0:0,2:1,2:2,2:3,2:4,3:5"));
-  storage[0].level = 0;
+  storage[0].state.level = 0;
   storage[0].remaining = 1;
   CHECK(!k80_controller_config::replace_addresses(&queue, "1:0,2:1,2:2,2:3,2:4,4:5"));
   storage[0].remaining = 0;
@@ -46,12 +46,12 @@ int main() {
   CHECK(!k80_controller_request(&queue, 0, 0.5f));
   const k80_controller_state on{K80_CONTROLLER_MODE_HSI, 50, 1, 90, 100, 1};
   CHECK(!k80_controller_request_state(&queue, 0, &on));
-  CHECK(storage[0].remaining == 0 && storage[0].level == 0);
+  CHECK(storage[0].remaining == 0 && storage[0].state.level == 0);
   CHECK(k80_controller_config::replace_addresses(&queue, "0:0,-,-,-,-,-"));
   CHECK(k80_controller_request_state(&queue, 0, &on));
-  CHECK(storage[0].remaining == 3 && storage[0].level == 50);
+  CHECK(storage[0].remaining == 3 && storage[0].state.level == 50);
   storage[0].remaining = 0;
-  storage[0].level = 0;
+  storage[0].state.level = 0;
   CHECK(k80_controller_config::replace_positions(&queue, "1A,2B,2D"));
   CHECK(k80_controller_config::positions(queue) == "1A,2B,2D");
   CHECK(storage[0].slot == 0 && storage[1].slot == 1 && storage[2].group == 3);

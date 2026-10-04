@@ -343,7 +343,7 @@ static int registry_and_static_restore() {
     std::string changed = table;
     changed[tail * 3] = '3';
     CHECK(!controller.replace_pairs(changed));
-    CHECK(controller.pairs() == table && controller.queue().next_endpoint == before.next_endpoint);
+    CHECK(controller.pairs() == table && controller.queue().next_slot == before.next_slot);
     for (size_t i = 0; i < pending.size(); ++i)
       CHECK(std::memcmp(&controller.pending(i), &pending[i], sizeof(pending[i])) == 0);
     state.loop();

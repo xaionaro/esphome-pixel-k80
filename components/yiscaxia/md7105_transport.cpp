@@ -77,14 +77,13 @@ bool Md7105Transport::calibrate_() {
 
 void Md7105Transport::setup() {
   this->spi_setup();
-  static constexpr uint8_t id[4] = {0xA5, 0x5A, 0xB9, 0x46};
   uint8_t readback[4]{};
   if (!this->spi_is_ready() || a7105_probe_reset_device(&this->bus_) != A7105_PROBE_OK ||
       a7105_probe_configure_4wire(&this->bus_) != A7105_PROBE_OK ||
       a7105_probe_initialize_rx(&this->bus_) != A7105_PROBE_OK ||
-      a7105_probe_write_id(&this->bus_, id) != A7105_PROBE_OK ||
+      a7105_probe_write_id(&this->bus_, a7105_k80_radio_id) != A7105_PROBE_OK ||
       a7105_probe_read_id(&this->bus_, readback) != A7105_PROBE_OK ||
-      std::memcmp(id, readback, sizeof(id)) != 0 || !this->calibrate_()) {
+      std::memcmp(a7105_k80_radio_id, readback, sizeof(a7105_k80_radio_id)) != 0 || !this->calibrate_()) {
     a7105_probe_send_strobe(&this->bus_, A7105_CMD_STANDBY);
     ESP_LOGE(TAG, "Radio initialization or calibration failed");
     this->mark_failed();
@@ -102,11 +101,11 @@ void Md7105Transport::dump_config() {
 yiscaxia_tx_result Md7105Transport::transmit(const yiscaxia_tx_packet &packet, int slot) {
   if (!this->ready_) {
     yiscaxia_tx_result result{};
-    result.error = -1;
+    result.error = YISCAXIA_TX_FAILED;
     return result;
   }
   const auto result = a7105_tx_packet_run(&this->bus_, &packet, slot, now_, delay_, nullptr);
-  if (result.error == -2 || result.error == -3) {
+  if (result.error == YISCAXIA_TX_STANDBY_FAILED || result.error == YISCAXIA_TX_RESTORE_FAILED) {
     this->ready_ = false;
     this->mark_failed();
     ESP_LOGE(TAG, "Radio restoration failed; transport stopped");

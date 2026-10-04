@@ -147,7 +147,7 @@ int main(void) {
   CHECK(k80_controller_begin_drain(&native));
   CHECK(k80_controller_request_state(&native, 0, &desired));
   CHECK(k80_controller_request(&native, 0, 1.0f / 255.0f));
-  CHECK(native_pending[0].level == 1);
+  CHECK(native_pending[0].state.level == 1);
   CHECK(k80_controller_request_state(&native, 0, &desired));
   CHECK(!k80_controller_take_state(&native, 0, &native_endpoint, &taken));
   k80_controller_end_drain(&native);
@@ -175,7 +175,7 @@ int main(void) {
   CHECK(k80_controller_request_state(&native, 0, &desired));
   CHECK(native_pending[0].state.effect == 8);
   CHECK(k80_controller_request(&native, 0, .5f));
-  CHECK(native_pending[0].level == 50 && native_pending[0].state.level == 50 &&
+  CHECK(native_pending[0].state.level == 50 &&
         native_pending[0].state.mode == 2 && native_pending[0].state.effect == 8);
   k80_controller_pending before = native_pending[0];
   desired.hue = 361;
@@ -191,7 +191,7 @@ int main(void) {
   CHECK(native_endpoint == 1 && taken.level == 1);
   desired.level = 0;
   CHECK(k80_controller_request_state(&native, 0, &desired));
-  CHECK(native_pending[0].level == 0 && native_pending[0].remaining == 3);
+  CHECK(native_pending[0].state.level == 0 && native_pending[0].remaining == 3);
   CHECK(k80_controller_take_state(&native, 0, &native_endpoint, &taken));
   CHECK(native_endpoint == 0 && taken.level == 0 && taken.effect == 8);
   uint8_t off[12];
@@ -229,7 +229,7 @@ int main(void) {
   CHECK(!k80_controller_request_field(&captured, 1, K80_CONTROLLER_SEMANTIC_FIELD_RGB, 1));
   CHECK(!k80_controller_request_field(&captured, 1,
        K80_CONTROLLER_SEMANTIC_FIELD_COLOR_TEMPERATURE, 1));
-  CHECK(captured_storage[1].remaining == 3 && captured_storage[1].level == 1 &&
+  CHECK(captured_storage[1].remaining == 3 && captured_storage[1].state.level == 1 &&
         !captured_storage[0].remaining);
   k80_controller_queue q = {0};
   k80_controller_pending storage[6];
@@ -254,7 +254,7 @@ int main(void) {
   CHECK(k80_controller_begin_drain(&q));
   CHECK(q.draining && !q.armed);
   CHECK(k80_controller_request(&q, 3, 0.42f));
-  CHECK(q.pending[3].level == 42 && q.pending[3].remaining == 3);
+  CHECK(q.pending[3].state.level == 42 && q.pending[3].remaining == 3);
   CHECK(!k80_controller_request_field(&q, 3, K80_CONTROLLER_SEMANTIC_FIELD_RGB, 0.5f));
   CHECK(!k80_controller_take(&q, 0, &group, &level));
   k80_controller_end_drain(&q);
@@ -310,7 +310,7 @@ int main(void) {
   CHECK(k80_controller_request(&q, 0, -1));
   CHECK(k80_controller_request(&q, 1, 2));
   CHECK(k80_controller_request(&q, 2, 0.505f));
-  CHECK(q.pending[0].level == 0 && q.pending[1].level == 100 && q.pending[2].level == 51);
+  CHECK(q.pending[0].state.level == 0 && q.pending[1].state.level == 100 && q.pending[2].state.level == 51);
   k80_controller_halt(&q);
   CHECK(!k80_controller_request(&q, 0, 1));
   CHECK(!k80_controller_take(&q, 10000000, &group, &level));
@@ -371,7 +371,7 @@ int main(void) {
   CHECK(k80_controller_request(&many, 7, 0));
   CHECK(k80_controller_request(&many, 8, 1));
   CHECK(k80_controller_request(&many, 7, .5f));
-  CHECK(pending[7].level == 50 && pending[8].level == 100 && pending[7].slot == 7);
+  CHECK(pending[7].state.level == 50 && pending[8].state.level == 100 && pending[7].slot == 7);
   k80_controller_abort(&many, 7);
   CHECK(!pending[7].remaining && pending[8].remaining == 3);
   k80_controller_halt(&many);

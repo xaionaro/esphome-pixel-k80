@@ -26,14 +26,13 @@ typedef struct {
   int semantic_profile;
 } k80_controller_endpoint;
 typedef struct {
-  uint8_t slot, group, semantic_profile, level, remaining, enabled;
+  uint8_t slot, group, semantic_profile, remaining, enabled;
   k80_controller_state state;
 } k80_controller_pending;
 typedef struct {
   k80_controller_pending *pending;
-  size_t count, next_endpoint;
-  int armed, draining, has_started;
-  uint64_t last_started_us;
+  size_t count;
+  int armed, draining;
   uint8_t attempts, selected_slot;
   uint16_t spacing_ms;
   size_t next_slot, next_position[K80_CONTROLLER_RF_SLOT_COUNT];
@@ -95,7 +94,7 @@ static inline int k80_controller_configure(k80_controller_queue *q,
     storage[i].slot = (uint8_t)endpoints[i].rf_slot;
     storage[i].group = (uint8_t)endpoints[i].rf_group;
     storage[i].semantic_profile = (uint8_t)endpoints[i].semantic_profile;
-    storage[i].level = storage[i].remaining = 0;
+    storage[i].remaining = 0;
     storage[i].enabled = 1;
     const k80_controller_state initial = {K80_CONTROLLER_MODE_CCT, 0, 1, 0, 100, 1};
     storage[i].state = initial;
@@ -134,7 +133,6 @@ static inline int k80_controller_request_state_attempts(k80_controller_queue *q,
     return 0;
   if (pending->remaining && k80_controller_states_equal(&pending->state, state)) return 1;
   pending->state = *state;
-  pending->level = (uint8_t)state->level;
   pending->remaining = attempts ? (uint8_t)attempts : q->attempts;
   return 1;
 }
@@ -160,8 +158,7 @@ static inline int k80_controller_request_field(k80_controller_queue *q, int endp
     state.level = level;
     return k80_controller_request_state(q, endpoint, &state);
   }
-  if (pending->remaining && pending->level == level) return 1;
-  pending->level = (uint8_t)level;
+  if (pending->remaining && pending->state.level == level) return 1;
   pending->state.level = level;
   pending->remaining = q->attempts;
   return 1;
@@ -184,7 +181,6 @@ static inline int k80_controller_take_state(k80_controller_queue *q, uint64_t no
       --q->pending[e].remaining;
       q->next_position[slot] = (e + 1) % q->count;
       q->next_slot = (slot + 1) % K80_CONTROLLER_RF_SLOT_COUNT;
-      q->next_endpoint = (e + 1) % q->count;
       q->selected_slot = (uint8_t)slot;
       return 1;
     }
@@ -200,8 +196,6 @@ static inline int k80_controller_take(k80_controller_queue *q, uint64_t now,
   return 1;
 }
 static inline void k80_controller_started(k80_controller_queue *q, uint64_t started) {
-  q->has_started = 1;
-  q->last_started_us = started;
   q->slot_started_us[q->selected_slot] = started;
   q->started_slots |= UINT64_C(1) << q->selected_slot;
 }

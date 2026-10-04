@@ -84,20 +84,17 @@ inline bool replace_addresses(k80_controller_queue *queue, const std::string &te
     cursor = end + 1;
   }
   bool changed = false;
-  for (size_t i = 0; i < queue->count; ++i)
-    changed |= queue->pending[i].enabled != (proposed[i].rf_slot >= 0) ||
-        (proposed[i].rf_slot >= 0 && (queue->pending[i].slot != proposed[i].rf_slot ||
-        queue->pending[i].group != proposed[i].rf_group));
-  if (!changed) return true;
   // OFF must finish at the old address before a light can be retargeted.
   for (size_t i = 0; i < queue->count; ++i) {
     const bool entry_changed = queue->pending[i].enabled != (proposed[i].rf_slot >= 0) ||
         (proposed[i].rf_slot >= 0 && (queue->pending[i].slot != proposed[i].rf_slot ||
         queue->pending[i].group != proposed[i].rf_group));
-    if (entry_changed && (queue->pending[i].level != 0 || queue->pending[i].remaining != 0))
+    changed |= entry_changed;
+    if (entry_changed && (queue->pending[i].state.level != 0 || queue->pending[i].remaining != 0))
       return false;
     if (entry_changed && light_idle && !light_idle(i)) return false;
   }
+  if (!changed) return true;
   for (size_t i = 0; i < queue->count; ++i) {
     queue->pending[i].enabled = proposed[i].rf_slot >= 0;
     if (queue->pending[i].enabled) {

@@ -7,6 +7,14 @@
 enum { K80_FRAME_SIZE = 12 };
 enum { K80_MODE_CCT = 0, K80_MODE_HSI = 1, K80_MODE_FLS = 2 };
 
+// CCT is encoded in 100 K steps from 2600 K through 10000 K.
+enum {
+  K80_CT_KELVIN_MIN = 2600,
+  K80_CT_KELVIN_STEP = 100,
+  K80_CT_INDEX_MAX = 74,
+  K80_CT_KELVIN_MAX = K80_CT_KELVIN_MIN + K80_CT_INDEX_MAX * K80_CT_KELVIN_STEP,
+};
+
 typedef struct {
   int group, mode, level, ct_index, hue, saturation, effect;
 } k80_received_state;
@@ -34,6 +42,14 @@ static inline uint8_t k80_sum(const uint8_t *bytes) {
   return (uint8_t)sum;
 }
 
+// Finalize a complete body after its semantic fields have been populated.
+static inline void k80_finalize_frame(uint8_t bytes[K80_FRAME_SIZE]) {
+  bytes[9] = k80_sum(bytes);
+  const uint16_t crc = k80_crc16(bytes, 10);
+  bytes[10] = (uint8_t)(crc >> 8);
+  bytes[11] = (uint8_t)crc;
+}
+
 static inline k80_frame_checks k80_check_frame(
     const uint8_t *bytes, size_t length) {
   k80_frame_checks checks = {0, 0, 0};
@@ -57,7 +73,7 @@ static inline int k80_decode_received(const uint8_t *bytes, size_t length,
   k80_received_state state = {bytes[1], bytes[2], bytes[3], 0, 0, 0, 0};
   if (state.mode == K80_MODE_CCT) {
     state.ct_index = bytes[4];
-    if (state.ct_index > 74) return -1;
+    if (state.ct_index > K80_CT_INDEX_MAX) return -1;
   } else if (state.mode == K80_MODE_HSI) {
     state.hue = bytes[5] | ((int)bytes[6] << 8);
     state.saturation = bytes[7];

@@ -88,10 +88,7 @@ static inline int k80_controller_build_packet(
 
   memcpy(output, seeds[group], sizeof(seeds[group]));
   output[3] = (uint8_t)level;
-  output[9] = k80_sum(output);
-  const uint16_t crc = k80_controller_crc16(output, 10);
-  output[10] = (uint8_t)(crc >> 8);
-  output[11] = (uint8_t)crc;
+  k80_finalize_frame(output);
   return 0;
 }
 
@@ -107,10 +104,7 @@ static inline int k80_controller_build_profile_packet(int profile, int slot,
   static const uint8_t cct_2700[9] = {0x36,0,0,0,1,0xB4,0,0x64,8};
   memcpy(output, cct_2700, sizeof(cct_2700));
   output[3] = (uint8_t)level;
-  output[9] = k80_sum(output);
-  const uint16_t crc = k80_crc16(output, 10);
-  output[10] = (uint8_t)(crc >> 8);
-  output[11] = (uint8_t)crc;
+  k80_finalize_frame(output);
   return 0;
 }
 
@@ -136,7 +130,7 @@ static inline int k80_controller_state_valid(int profile, int slot, int group,
       k80_controller_raw_address_valid(slot, group) &&
       state->mode >= K80_CONTROLLER_MODE_CCT && state->mode <= K80_CONTROLLER_MODE_FLS &&
       state->level >= 0 && state->level <= 100 &&
-      state->ct_index >= 0 && state->ct_index <= 74 &&
+      state->ct_index >= 0 && state->ct_index <= K80_CT_INDEX_MAX &&
       state->hue >= 0 && state->hue <= 360 &&
       state->saturation >= 0 && state->saturation <= 100 &&
       state->effect >= 1 && state->effect <= 9;
@@ -166,10 +160,7 @@ static inline int k80_controller_build_state_packet(int profile, int slot, int g
       }
     }
   }
-  body[9] = k80_sum(body);
-  const uint16_t crc = k80_crc16(body, 10);
-  body[10] = (uint8_t)(crc >> 8);
-  body[11] = (uint8_t)crc;
+  k80_finalize_frame(body);
   memcpy(output, body, sizeof(body));
   return 0;
 }
