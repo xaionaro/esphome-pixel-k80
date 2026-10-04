@@ -1,4 +1,5 @@
 #include "yiscaxia_state_conversion.h"
+#include "k80_controller_scheduler.h"
 #include "test_check.h"
 #include <limits>
 
@@ -10,7 +11,7 @@ int main() {
   CHECK(brightness_to_level(1, &level) && level == 100);
   CHECK(!brightness_to_level(std::numeric_limits<float>::quiet_NaN(), &level) && level == 100);
   CHECK(!brightness_to_level(-.1f, &level));
-  k80_controller_state previous = {K80_CONTROLLER_MODE_HSI, 1, 1, 120, 100, 1}, result;
+  k80_control_values previous = {K80_MODE_HSI, 1, 1, 120, 100, 1}, result;
   CHECK(rgb_to_state(1, 0, 0, .01f, previous, &result));
   CHECK(result.mode == 1 && result.level == 1 && result.hue == 0 && result.saturation == 100);
   CHECK(rgb_to_state(0, 1, 0, .01f, previous, &result) && result.hue == 120);

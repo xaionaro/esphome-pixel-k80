@@ -86,14 +86,14 @@ static int semantic_and_effects() {
       .set_color_brightness(.5f).set_transition_length(0).perform();
   CHECK(!controller.endpoint_pending(0));
   state.loop();
-  CHECK(controller.pending(0).state.mode == K80_CONTROLLER_MODE_HSI);
+  CHECK(controller.pending(0).state.mode == K80_MODE_HSI);
   CHECK(controller.pending(0).state.hue == 120 && controller.pending(0).state.saturation == 100);
   CHECK(controller.pending(0).state.level == 13 && controller.pending(0).remaining == 3);
   for (uint32_t i = 1; i <= 9; ++i) {
     controller.abort(0);
     state.make_call().set_effect(i).set_transition_length(0).perform();
     state.loop();
-    CHECK(controller.pending(0).state.mode == K80_CONTROLLER_MODE_FLS);
+    CHECK(controller.pending(0).state.mode == K80_MODE_FLS);
     CHECK(controller.pending(0).state.effect == static_cast<int>(i));
     CHECK(controller.pending(0).state.level == 25 && controller.pending(0).remaining == 3);
     controller.abort(0);
@@ -105,12 +105,12 @@ static int semantic_and_effects() {
       .set_transition_length(0).perform();
   state.loop();
   CHECK(state.get_current_effect_index() == 0);
-  CHECK(controller.pending(0).state.mode == K80_CONTROLLER_MODE_HSI);
+  CHECK(controller.pending(0).state.mode == K80_MODE_HSI);
   CHECK(controller.pending(0).state.saturation == 0 && controller.pending(0).state.level == 13);
   state.make_call().set_color_mode(ColorMode::COLOR_TEMPERATURE)
       .set_color_temperature(1000000.0f / 2700).set_transition_length(0).perform();
   state.loop();
-  CHECK(controller.pending(0).state.mode == K80_CONTROLLER_MODE_CCT);
+  CHECK(controller.pending(0).state.mode == K80_MODE_CCT);
   CHECK(controller.pending(0).state.ct_index == 1 && controller.pending(0).state.level == 25);
   const auto valid = controller.pending(0);
   state.current_values.set_color_temperature(99);
@@ -131,7 +131,7 @@ static int semantic_and_effects() {
   state.loop();
   CHECK(controller.pending(0).state.level == 0 && controller.pending(0).remaining == 3);
   controller.loop();
-  CHECK(transport.transmissions.back().packet.bytes[2] == K80_CONTROLLER_MODE_CCT);
+  CHECK(transport.transmissions.back().packet.bytes[2] == K80_MODE_CCT);
   CHECK(transport.transmissions.back().packet.bytes[3] == 0);
   controller.abort(0);
   state.make_call().set_state(true).set_transition_length(0).perform();
@@ -150,7 +150,7 @@ static int queue_and_transport() {
   Transport transport;
   initialize(controller, transport, "1A,1B,2A");
   controller.loop();
-  k80_controller_state first{K80_CONTROLLER_MODE_HSI, 30, 1, 120, 100, 1};
+  k80_control_values first{K80_MODE_HSI, 30, 1, 120, 100, 1};
   CHECK(controller.request_state(0, first, false));
   controller.loop();
   CHECK(transport.transmissions.size() == 1 && controller.pending(0).remaining == 2);
@@ -294,7 +294,7 @@ static int rainbow_and_restore() {
   CHECK(reboot.queue().armed && reboot_transport.transmissions.size() == 1);
   CHECK(reboot.pending(0).remaining == 6 && reboot.pending(0).state.hue == 120);
   CHECK(preferences.saves == before_replay);
-  CHECK(reboot_transport.transmissions[0].packet.bytes[2] == K80_CONTROLLER_MODE_HSI);
+  CHECK(reboot_transport.transmissions[0].packet.bytes[2] == K80_MODE_HSI);
   restored.make_call().set_state(false).set_transition_length(0).perform();
   restored.loop();
   CHECK(restored.get_current_effect_index() == 0 && reboot.pending(0).remaining == 7);
@@ -383,8 +383,8 @@ static int registry_and_static_restore() {
     CHECK(restored_controller.pending(i).remaining == 2);
     const auto &wire = restored_transport.transmissions[0];
     CHECK(wire.slot == static_cast<int>(i / 6));
-    CHECK(wire.packet.bytes[2] == (i == 1 ? K80_CONTROLLER_MODE_CCT :
-        i < 2 ? K80_CONTROLLER_MODE_HSI : K80_CONTROLLER_MODE_FLS));
+    CHECK(wire.packet.bytes[2] == (i == 1 ? K80_MODE_CCT :
+        i < 2 ? K80_MODE_HSI : K80_MODE_FLS));
     CHECK(wire.packet.bytes[3] == (i == 0 ? 13 : 25));
     if (i == 1) CHECK(wire.packet.bytes[4] == 1);
     if (i >= 2) CHECK(wire.packet.bytes[8] == i - 1);
@@ -400,7 +400,7 @@ static int registry_and_static_restore() {
   none_controller.loop();
   CHECK(none.remote_values.is_on() && none.get_current_effect_index() == 0);
   CHECK(none_transport.transmissions.size() == 1 &&
-      none_transport.transmissions[0].packet.bytes[2] == K80_CONTROLLER_MODE_HSI);
+      none_transport.transmissions[0].packet.bytes[2] == K80_MODE_HSI);
   Controller disabled_controller;
   Transport disabled_transport;
   initialize(disabled_controller, disabled_transport, "1A");

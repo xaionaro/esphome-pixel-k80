@@ -57,10 +57,6 @@ class YiscaxiaLightOutput final : public light::LightOutput {
   void setup_state(light::LightState *state) override {
     this->parent_->register_light(this->endpoint_, state);
     this->profile_ = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY;
-    if (this->profile_ == K80_CONTROLLER_SEMANTIC_PROFILE_NONE) {
-      ESP_LOGE("k80", "Endpoint %d has no validated radio profile", this->endpoint_);
-      return;
-    }
     if (k80_controller_profile_is_native(this->profile_) && !this->effects_registered_) {
       state->add_effects({&this->sos_, &this->lightning_1_, &this->lightning_2_, &this->tv_, &this->police_,
                          &this->ambulance_, &this->fire_, &this->circle_1_, &this->circle_2_, &this->rainbow_});
@@ -100,7 +96,7 @@ class YiscaxiaLightOutput final : public light::LightOutput {
       return;
     }
     float intensity = values.get_state() * values.get_brightness();
-    k80_controller_state next = this->desired_;
+    k80_control_values next = this->desired_;
     const auto effect = state->get_current_effect_index();
     if (effect > 10) {
       ESP_LOGW("k80", "Endpoint %d rejected unknown native effect", this->endpoint_);
@@ -121,15 +117,15 @@ class YiscaxiaLightOutput final : public light::LightOutput {
       } else {
         if (!brightness_to_level(intensity, &next.level)) return;
         next.hue = 0;
-        next.saturation = 100;
+        next.saturation = K80_SATURATION_MAX;
         this->rainbow_.set_value(1.0f);
       }
-      next.mode = K80_CONTROLLER_MODE_HSI;
+      next.mode = K80_MODE_HSI;
       this->rainbow_.initialize_hue(next.hue);
       next.hue = this->rainbow_.hue();
     } else if (effect) {
       if (!brightness_to_level(intensity, &next.level)) return;
-      next.mode = K80_CONTROLLER_MODE_FLS;
+      next.mode = K80_MODE_FLS;
       next.effect = static_cast<int>(effect);
     } else {
       if (values.get_color_mode() == light::ColorMode::RGB) {
@@ -168,12 +164,12 @@ class YiscaxiaLightOutput final : public light::LightOutput {
   YiscaxiaController *parent_;
   const int endpoint_;
   int profile_{K80_CONTROLLER_SEMANTIC_PROFILE_NONE};
-  int last_non_fls_mode_{K80_CONTROLLER_MODE_CCT};
+  int last_non_fls_mode_{K80_MODE_CCT};
   bool effects_registered_{false};
   bool automatic_phase_{false};
   bool generating_phase_{false};
   bool manual_pending_{false};
-  k80_controller_state desired_{K80_CONTROLLER_MODE_CCT, 0, 1, 0, 100, 1};
+  k80_control_values desired_{k80_default_controls()};
   YiscaxiaNativeEffect sos_{"SOS"}, lightning_1_{"Lightning 1"}, lightning_2_{"Lightning 2"},
       tv_{"TV Screen"}, police_{"Police"}, ambulance_{"Ambulance"}, fire_{"Fire Engine"},
       circle_1_{"RGB Circle 1"}, circle_2_{"RGB Circle 2"};
@@ -197,7 +193,8 @@ inline void YiscaxiaSlowRainbowEffect::apply() {
 
   this->hue_ = static_cast<uint16_t>((this->hue_ + 1) % 360);
   float red, green, blue;
-  hsv_to_rgb(this->hue_, this->output_->desired_.saturation / 100.0f, this->value_, red, green, blue);
+  hsv_to_rgb(this->hue_, this->output_->desired_.saturation / static_cast<float>(K80_SATURATION_MAX),
+             this->value_, red, green, blue);
   this->output_->generating_phase_ = true;
   this->state_->make_call()
       .set_rgb(red, green, blue)

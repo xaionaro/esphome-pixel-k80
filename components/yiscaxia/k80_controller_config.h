@@ -36,7 +36,7 @@ constexpr int profile(const char *text) {
 constexpr k80_controller_endpoint endpoint(const char *slot, const char *group,
     const char *semantic_profile) {
   return {decimal(slot, K80_CONTROLLER_RF_SLOT_COUNT - 1),
-      decimal(group, K80_CONTROLLER_GROUP_COUNT - 1), profile(semantic_profile)};
+      decimal(group, K80_GROUP_COUNT - 1), profile(semantic_profile)};
 }
 
 template <size_t Count>
@@ -122,6 +122,8 @@ inline std::string addresses(const k80_controller_queue &queue) {
 // Public channel numbers are one-based; the RF codec remains zero-based.
 // CH1..5 -> slots0..4 is measured; higher channels use the same model, not
 // a claim of physical validation on every lamp.
+// TODO: Parse public pairs directly into a shared parsed-table transaction;
+// current normalization serializes raw addresses only to parse them again.
 inline bool replace_positions(k80_controller_queue *queue, const std::string &text,
     std::function<bool(size_t)> light_idle = nullptr) {
   if (!queue || text.size() > 255 || text.find('\0') != std::string::npos) return false;

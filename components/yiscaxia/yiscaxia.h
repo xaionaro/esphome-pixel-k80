@@ -23,7 +23,7 @@ class YiscaxiaController : public Component {
   bool replace_pairs(const std::string &pairs);
   std::string pairs() const { return k80_controller_config::positions(this->queue_); }
   size_t capacity() const { return this->capacity_; }
-  bool request_state(int endpoint, const k80_controller_state &state, bool once);
+  bool request_state(int endpoint, const k80_control_values &state, bool once);
   uint16_t transmission_setting(bool spacing) const {
     return spacing ? this->queue_.spacing_ms : this->queue_.attempts;
   }

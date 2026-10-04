@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 #include "k80_frame.h"
 
 #ifdef __cplusplus
@@ -10,8 +11,6 @@ extern "C" {
 #endif
 
 enum {
-  K80_CONTROLLER_GROUP_COUNT = 6,
-  K80_CONTROLLER_PACKET_SIZE = K80_FRAME_SIZE,
   K80_CONTROLLER_RF_SLOT_COUNT = 48,
   K80_CONTROLLER_MEASURED_RF_SLOT_MAX = 3,
 };
@@ -26,8 +25,6 @@ typedef enum {
   K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_MEASURED_FREQUENCY = 4,
   // Explicit experimental raw-address opt-in; no UI mapping or fixture ACK implied.
   K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY = 5,
-  // Compatibility alias; empirical admission is separate from the raw codec.
-  K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_CH1_A = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE,
 } k80_controller_semantic_profile;
 
 #ifdef __cplusplus
@@ -44,7 +41,7 @@ static inline K80_CONTROLLER_CONSTEXPR int k80_controller_profile_is_native(int 
 
 static inline K80_CONTROLLER_CONSTEXPR int k80_controller_raw_address_valid(int slot, int group) {
   return slot >= 0 && slot < K80_CONTROLLER_RF_SLOT_COUNT &&
-      group >= 0 && group < K80_CONTROLLER_GROUP_COUNT;
+      group >= 0 && group < K80_GROUP_COUNT;
 }
 
 // Live admission, not the pure codec's syntactic raw-address domain.
@@ -60,21 +57,16 @@ static inline K80_CONTROLLER_CONSTEXPR int k80_controller_profile_address_valid(
 
 #undef K80_CONTROLLER_CONSTEXPR
 
-// Captured-body CRC: poly 0x1021, init 0x1D0F, no reflection or xorout.
-static inline uint16_t k80_controller_crc16(const uint8_t *bytes, size_t length) {
-  return k80_crc16(bytes, length);
-}
-
 // Build only the FIFO body, without preamble, RF ID, or hardware CRC.
 // These RF group indices are the captured CH03 group values. Their A-F label
 // mapping is observed only at CH03; the opaque captured settings are preserved
 // per group, and this does not learn subsequent remote state.
 // Return 0 on success, -1 on invalid input without changing output.
 static inline int k80_controller_build_packet(
-    int group, int level, uint8_t output[K80_CONTROLLER_PACKET_SIZE]) {
+    int group, int level, uint8_t output[K80_FRAME_SIZE]) {
   // Captured zero-level prefixes, sequences 14, 20, 25, 48, 4, 9 in
   // k80-raw-frames-20260919T1817/index.jsonl (2026-09-19).
-  static const uint8_t seeds[K80_CONTROLLER_GROUP_COUNT][9] = {
+  static const uint8_t seeds[K80_GROUP_COUNT][9] = {
       {0x36, 0x00, 0x00, 0x00, 0x00, 0xB4, 0x00, 0x64, 0x08},
       {0x36, 0x01, 0x00, 0x00, 0x00, 0x04, 0x01, 0x64, 0x08},
       {0x36, 0x02, 0x00, 0x00, 0x00, 0x37, 0x01, 0x64, 0x08},
@@ -82,8 +74,8 @@ static inline int k80_controller_build_packet(
       {0x36, 0x04, 0x00, 0x00, 0x00, 0x78, 0x00, 0x64, 0x01},
       {0x36, 0x05, 0x00, 0x00, 0x00, 0x78, 0x00, 0x64, 0x01},
   };
-  if (output == NULL || group < 0 || group >= K80_CONTROLLER_GROUP_COUNT ||
-      level < 0 || level > 100)
+  if (output == NULL || group < 0 || group >= K80_GROUP_COUNT ||
+      level < 0 || level > K80_LEVEL_MAX)
     return -1;
 
   memcpy(output, seeds[group], sizeof(seeds[group]));
@@ -92,11 +84,11 @@ static inline int k80_controller_build_packet(
   return 0;
 }
 
-// Keep the legacy entrypoint and six captured seeds intact. The explicit
-// profile refuses unobserved addresses before writing any output bytes.
+// Captured profiles preserve their distinct opaque seed fields. Profile
+// admission refuses unobserved addresses before writing any output bytes.
 static inline int k80_controller_build_profile_packet(int profile, int slot,
-    int group, int level, uint8_t output[K80_CONTROLLER_PACKET_SIZE]) {
-  if (!output || level < 0 || level > 100 ||
+    int group, int level, uint8_t output[K80_FRAME_SIZE]) {
+  if (!output || level < 0 || level > K80_LEVEL_MAX ||
       !k80_controller_profile_address_valid(profile, slot, group)) return -1;
   if (profile == K80_CONTROLLER_SEMANTIC_PROFILE_BRIGHTNESS)
     return k80_controller_build_packet(group, level, output);
@@ -108,51 +100,48 @@ static inline int k80_controller_build_profile_packet(int profile, int slot,
   return 0;
 }
 
-typedef enum {
-  K80_CONTROLLER_MODE_CCT = K80_MODE_CCT,
-  K80_CONTROLLER_MODE_HSI = K80_MODE_HSI,
-  K80_CONTROLLER_MODE_FLS = K80_MODE_FLS,
-} k80_controller_mode;
+// Desired controls start OFF with valid remembered color/effect selections.
+static inline k80_control_values k80_default_controls(void) {
+  const k80_control_values controls = {K80_MODE_CCT, 0, 1, 0, K80_SATURATION_MAX, K80_NATIVE_EFFECT_MIN};
+  return controls;
+}
 
-// Full-width fields deliberately prevent invalid values narrowing before validation.
-typedef struct {
-  int mode;
-  int level;
-  int ct_index;
-  int hue;
-  int saturation;
-  int effect;
-} k80_controller_state;
+// Quantize only an already-admitted finite value in the normalized 0..1 domain.
+static inline int k80_quantize_brightness(float value) {
+  int level = (int)floorf(value * (float)K80_LEVEL_MAX + 0.5f);
+  if (value > 0 && level == 0) level = 1;
+  return level;
+}
 
 static inline int k80_controller_state_valid(int profile, int slot, int group,
-    const k80_controller_state *state) {
+    const k80_control_values *state) {
   return state && k80_controller_profile_is_native(profile) &&
       k80_controller_raw_address_valid(slot, group) &&
-      state->mode >= K80_CONTROLLER_MODE_CCT && state->mode <= K80_CONTROLLER_MODE_FLS &&
-      state->level >= 0 && state->level <= 100 &&
+      state->mode >= K80_MODE_CCT && state->mode <= K80_MODE_FLS &&
+      state->level >= 0 && state->level <= K80_LEVEL_MAX &&
       state->ct_index >= 0 && state->ct_index <= K80_CT_INDEX_MAX &&
-      state->hue >= 0 && state->hue <= 360 &&
-      state->saturation >= 0 && state->saturation <= 100 &&
-      state->effect >= 1 && state->effect <= 9;
+      state->hue >= 0 && state->hue <= K80_HUE_MAX &&
+      state->saturation >= 0 && state->saturation <= K80_SATURATION_MAX &&
+      state->effect >= K80_NATIVE_EFFECT_MIN && state->effect <= K80_NATIVE_EFFECT_MAX;
 }
 
 // Parameter ranges are provisional host domains, not proof of every device setting.
 // OFF uses the captured CCT2700 zero format with the requested raw group.
 // Pure raw-domain construction does not authorize a live endpoint or UI map.
 static inline int k80_controller_build_state_packet(int profile, int slot, int group,
-    const k80_controller_state *state, uint8_t output[K80_CONTROLLER_PACKET_SIZE]) {
+    const k80_control_values *state, uint8_t output[K80_FRAME_SIZE]) {
   if (!output || !k80_controller_state_valid(profile, slot, group, state)) return -1;
-  uint8_t body[K80_CONTROLLER_PACKET_SIZE] = {0x36, 0, 0, 0, 1, 0xB4, 0, 100, 8, 0, 0, 0};
+  uint8_t body[K80_FRAME_SIZE] = {0x36, 0, 0, 0, 1, 0xB4, 0, 100, 8, 0, 0, 0};
   body[1] = (uint8_t)group;
   body[3] = (uint8_t)state->level;
   if (state->level != 0) {
     body[2] = (uint8_t)state->mode;
-    if (state->mode == K80_CONTROLLER_MODE_CCT) body[4] = (uint8_t)state->ct_index;
+    if (state->mode == K80_MODE_CCT) body[4] = (uint8_t)state->ct_index;
     else {
       body[4] = 0;
       body[5] = body[6] = 0;
       body[8] = (uint8_t)state->effect;
-      if (state->mode == K80_CONTROLLER_MODE_HSI) {
+      if (state->mode == K80_MODE_HSI) {
         body[5] = (uint8_t)state->hue;
         body[6] = (uint8_t)(state->hue >> 8);
         body[7] = (uint8_t)state->saturation;
@@ -168,18 +157,18 @@ static inline int k80_controller_build_state_packet(int profile, int slot, int g
 // Pure decoding requires the expected group and a canonical body. Integrity
 // or raw-domain admission does not establish empirical live-device support.
 static inline int k80_controller_decode_state_packet(int profile, int slot, int group,
-    const uint8_t body[K80_CONTROLLER_PACKET_SIZE], k80_controller_state *output) {
+    const uint8_t body[K80_FRAME_SIZE], k80_control_values *output) {
   if (!body || !output || !k80_controller_raw_address_valid(slot, group) || body[1] != group)
     return -1;
-  const k80_frame_checks checks = k80_check_frame(body, K80_CONTROLLER_PACKET_SIZE);
+  const k80_frame_checks checks = k80_check_frame(body, K80_FRAME_SIZE);
   if (!checks.sum_ok || !checks.crc_ok) return -1;
-  k80_controller_state state = {body[2], body[3], 1, 0, 100, 1};
-  if (state.mode == K80_CONTROLLER_MODE_CCT) state.ct_index = body[4];
-  else if (state.mode == K80_CONTROLLER_MODE_HSI) {
+  k80_control_values state = {body[2], body[3], 1, 0, 100, 1};
+  if (state.mode == K80_MODE_CCT) state.ct_index = body[4];
+  else if (state.mode == K80_MODE_HSI) {
     state.hue = body[5] | ((int)body[6] << 8);
     state.saturation = body[7];
-  } else if (state.mode == K80_CONTROLLER_MODE_FLS) state.effect = body[8];
-  uint8_t canonical[K80_CONTROLLER_PACKET_SIZE];
+  } else if (state.mode == K80_MODE_FLS) state.effect = body[8];
+  uint8_t canonical[K80_FRAME_SIZE];
   if (k80_controller_build_state_packet(profile, slot, group, &state, canonical) != 0 ||
       memcmp(body, canonical, sizeof(canonical)) != 0) return -1;
   *output = state;

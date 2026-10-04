@@ -6,7 +6,7 @@
 #include <string.h>
 
 enum {
-  K80_CONTROLLER_ENDPOINT_LIMIT = K80_CONTROLLER_RF_SLOT_COUNT * K80_CONTROLLER_GROUP_COUNT,
+  K80_CONTROLLER_ENDPOINT_LIMIT = (int)K80_CONTROLLER_RF_SLOT_COUNT * (int)K80_GROUP_COUNT,
   K80_CONTROLLER_DEFAULT_ATTEMPTS = 3,
   K80_CONTROLLER_DEFAULT_SPACING_MS = 150,
 };
@@ -27,7 +27,7 @@ typedef struct {
 } k80_controller_endpoint;
 typedef struct {
   uint8_t slot, group, semantic_profile, remaining, enabled;
-  k80_controller_state state;
+  k80_control_values state;
 } k80_controller_pending;
 typedef struct {
   k80_controller_pending *pending;
@@ -96,8 +96,7 @@ static inline int k80_controller_configure(k80_controller_queue *q,
     storage[i].semantic_profile = (uint8_t)endpoints[i].semantic_profile;
     storage[i].remaining = 0;
     storage[i].enabled = 1;
-    const k80_controller_state initial = {K80_CONTROLLER_MODE_CCT, 0, 1, 0, 100, 1};
-    storage[i].state = initial;
+    storage[i].state = k80_default_controls();
   }
   q->pending = storage;
   q->count = count;
@@ -115,14 +114,14 @@ static inline void k80_controller_end_drain(k80_controller_queue *q) {
   q->draining = 0;
   for (size_t i = 0; i < q->count; ++i) q->pending[i].remaining = 0;
 }
-static inline int k80_controller_states_equal(const k80_controller_state *a,
-    const k80_controller_state *b) {
+static inline int k80_controller_states_equal(const k80_control_values *a,
+    const k80_control_values *b) {
   return a->mode == b->mode && a->level == b->level && a->ct_index == b->ct_index &&
       a->hue == b->hue && a->saturation == b->saturation && a->effect == b->effect;
 }
 // Zero selects the configured total; an explicit total belongs only to this command.
 static inline int k80_controller_request_state_attempts(k80_controller_queue *q, int endpoint,
-    const k80_controller_state *state, int attempts) {
+    const k80_control_values *state, int attempts) {
   if (attempts < 0 || attempts > 255) return 0;
   if (!q || (!q->armed && !q->draining) || !q->pending || endpoint < 0 ||
       (size_t)endpoint >= q->count) return 0;
@@ -137,7 +136,7 @@ static inline int k80_controller_request_state_attempts(k80_controller_queue *q,
   return 1;
 }
 static inline int k80_controller_request_state(k80_controller_queue *q, int endpoint,
-    const k80_controller_state *state) {
+    const k80_control_values *state) {
   return k80_controller_request_state_attempts(q, endpoint, state, 0);
 }
 static inline int k80_controller_request_field(k80_controller_queue *q, int endpoint,
@@ -150,11 +149,10 @@ static inline int k80_controller_request_field(k80_controller_queue *q, int endp
     return 0;
   if (value < 0) value = 0;
   if (value > 1) value = 1;
-  int level = (int)floorf(value * 100.0f + 0.5f);
-  if (value > 0 && level == 0) level = 1;
+  const int level = k80_quantize_brightness(value);
   k80_controller_pending *pending = &q->pending[endpoint];
   if (k80_controller_profile_is_native(pending->semantic_profile)) {
-    k80_controller_state state = pending->state;
+    k80_control_values state = pending->state;
     state.level = level;
     return k80_controller_request_state(q, endpoint, &state);
   }
@@ -167,7 +165,7 @@ static inline int k80_controller_request(k80_controller_queue *q, int endpoint, 
   return k80_controller_request_field(q, endpoint, K80_CONTROLLER_SEMANTIC_FIELD_BRIGHTNESS, value);
 }
 static inline int k80_controller_take_state(k80_controller_queue *q, uint64_t now,
-    int *endpoint, k80_controller_state *state) {
+    int *endpoint, k80_control_values *state) {
   if (!q || !endpoint || !state || !q->pending || !q->armed) return 0;
   for (size_t i = 0; i < K80_CONTROLLER_RF_SLOT_COUNT; ++i) {
     const size_t slot = (q->next_slot + i) % K80_CONTROLLER_RF_SLOT_COUNT;
@@ -190,7 +188,7 @@ static inline int k80_controller_take_state(k80_controller_queue *q, uint64_t no
 static inline int k80_controller_take(k80_controller_queue *q, uint64_t now,
     int *endpoint, int *level) {
   if (!level) return 0;
-  k80_controller_state state;
+  k80_control_values state;
   if (!k80_controller_take_state(q, now, endpoint, &state)) return 0;
   *level = state.level;
   return 1;

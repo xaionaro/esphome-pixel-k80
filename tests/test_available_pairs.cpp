@@ -44,7 +44,7 @@ int main() {
   CHECK(k80_controller_config::addresses(queue) == "-,-,-,-,-,-");
   queue.armed = 1;
   CHECK(!k80_controller_request(&queue, 0, 0.5f));
-  const k80_controller_state on{K80_CONTROLLER_MODE_HSI, 50, 1, 90, 100, 1};
+  const k80_control_values on{K80_MODE_HSI, 50, 1, 90, 100, 1};
   CHECK(!k80_controller_request_state(&queue, 0, &on));
   CHECK(storage[0].remaining == 0 && storage[0].state.level == 0);
   CHECK(k80_controller_config::replace_addresses(&queue, "0:0,-,-,-,-,-"));

@@ -6,6 +6,14 @@
 // K80 body checks and receive semantics are independent of the radio bus.
 enum { K80_FRAME_SIZE = 12 };
 enum { K80_MODE_CCT = 0, K80_MODE_HSI = 1, K80_MODE_FLS = 2 };
+enum {
+  K80_GROUP_COUNT = 6,
+  K80_LEVEL_MAX = 100,
+  K80_HUE_MAX = 360,
+  K80_SATURATION_MAX = 100,
+  K80_NATIVE_EFFECT_MIN = 1,
+  K80_NATIVE_EFFECT_MAX = 9,
+};
 
 // CCT is encoded in 100 K steps from 2600 K through 10000 K.
 enum {
@@ -15,8 +23,19 @@ enum {
   K80_CT_KELVIN_MAX = K80_CT_KELVIN_MIN + K80_CT_INDEX_MAX * K80_CT_KELVIN_STEP,
 };
 
+// Full-width controls retain invalid input until the appropriate policy checks it.
 typedef struct {
-  int group, mode, level, ct_index, hue, saturation, effect;
+  int mode;
+  int level;
+  int ct_index;
+  int hue;
+  int saturation;
+  int effect;
+} k80_control_values;
+
+typedef struct {
+  int group;
+  k80_control_values controls;
 } k80_received_state;
 
 typedef struct {
@@ -68,19 +87,19 @@ static inline int k80_decode_received(const uint8_t *bytes, size_t length,
   if (output == NULL) return -1;
   const k80_frame_checks checks = k80_check_frame(bytes, length);
   if (!checks.length_ok || !checks.sum_ok || !checks.crc_ok ||
-      bytes[0] != 0x36 || bytes[1] > 5 || bytes[2] > K80_MODE_FLS || bytes[3] > 100)
+      bytes[0] != 0x36 || bytes[1] >= K80_GROUP_COUNT || bytes[2] > K80_MODE_FLS || bytes[3] > K80_LEVEL_MAX)
     return -1;
-  k80_received_state state = {bytes[1], bytes[2], bytes[3], 0, 0, 0, 0};
-  if (state.mode == K80_MODE_CCT) {
-    state.ct_index = bytes[4];
-    if (state.ct_index > K80_CT_INDEX_MAX) return -1;
-  } else if (state.mode == K80_MODE_HSI) {
-    state.hue = bytes[5] | ((int)bytes[6] << 8);
-    state.saturation = bytes[7];
-    if (state.hue > 360 || state.saturation > 100) return -1;
+  k80_received_state state = {bytes[1], {bytes[2], bytes[3], 0, 0, 0, 0}};
+  if (state.controls.mode == K80_MODE_CCT) {
+    state.controls.ct_index = bytes[4];
+    if (state.controls.ct_index > K80_CT_INDEX_MAX) return -1;
+  } else if (state.controls.mode == K80_MODE_HSI) {
+    state.controls.hue = bytes[5] | ((int)bytes[6] << 8);
+    state.controls.saturation = bytes[7];
+    if (state.controls.hue > K80_HUE_MAX || state.controls.saturation > K80_SATURATION_MAX) return -1;
   } else {
-    state.effect = bytes[8];
-    if (state.effect < 1 || state.effect > 9) return -1;
+    state.controls.effect = bytes[8];
+    if (state.controls.effect < K80_NATIVE_EFFECT_MIN || state.controls.effect > K80_NATIVE_EFFECT_MAX) return -1;
   }
   *output = state;
   return 0;

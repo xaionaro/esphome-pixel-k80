@@ -398,6 +398,15 @@ static inline int a7105_probe_configure_4wire(const a7105_probe_bus_t *bus) {
                                   A7105_GIO2_FSYNC_STATUS);
 }
 
+// Field admission is shared; FIFO and direct profiles keep distinct write order.
+static inline int a7105_probe_profile_fields_valid(const a7105_scan_profile_t *profile) {
+  return profile != NULL &&
+      (profile->data_rate == 0x00U || profile->data_rate == 0x01U || profile->data_rate == 0x03U) &&
+      (profile->rx_dem == 0x47U || profile->rx_dem == 0x27U) &&
+      profile->rx == 0x62U && profile->code_i == 0x07U &&
+      (profile->code_ii == 0x16U || profile->code_ii == 0x17U);
+}
+
 static inline int a7105_probe_configure_rx_profile(
     const a7105_probe_bus_t *bus, uint8_t channel,
     const a7105_scan_profile_t *profile) {
@@ -405,11 +414,7 @@ static inline int a7105_probe_configure_rx_profile(
       channel >= A7105_SCAN_CHANNEL_COUNT) {
     return A7105_PROBE_INVALID_ARGUMENT;
   }
-  if ((profile->data_rate != 0x00U && profile->data_rate != 0x01U &&
-       profile->data_rate != 0x03U) ||
-      (profile->rx_dem != 0x47U && profile->rx_dem != 0x27U) ||
-      profile->rx != 0x62U || profile->code_i != 0x07U ||
-      (profile->code_ii != 0x16U && profile->code_ii != 0x17U)) {
+  if (!a7105_probe_profile_fields_valid(profile)) {
     return A7105_PROBE_INVALID_ARGUMENT;
   }
 
@@ -535,11 +540,7 @@ static inline int a7105_probe_configure_direct_profile(
       channel >= A7105_SCAN_CHANNEL_COUNT) {
     return A7105_PROBE_INVALID_ARGUMENT;
   }
-  if ((profile->data_rate != 0x00U && profile->data_rate != 0x01U &&
-       profile->data_rate != 0x03U) ||
-      (profile->rx_dem != 0x47U && profile->rx_dem != 0x27U) ||
-      profile->rx != 0x62U || profile->code_i != 0x07U ||
-      (profile->code_ii != 0x16U && profile->code_ii != 0x17U)) {
+  if (!a7105_probe_profile_fields_valid(profile)) {
     return A7105_PROBE_INVALID_ARGUMENT;
   }
 

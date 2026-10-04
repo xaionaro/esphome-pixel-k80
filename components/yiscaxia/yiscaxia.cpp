@@ -16,7 +16,7 @@ void YiscaxiaController::setup() {
   this->queue_.spacing_ms = K80_CONTROLLER_DEFAULT_SPACING_MS;
   for (auto &position : this->pending_) {
     position.semantic_profile = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY;
-    position.state = {K80_CONTROLLER_MODE_CCT, 0, 1, 0, 100, 1};
+    position.state = k80_default_controls();
   }
   if (!this->replace_pairs(this->initial_pairs_)) {
     ESP_LOGE(TAG, "Invalid initial pair table");
@@ -45,7 +45,7 @@ bool YiscaxiaController::replace_pairs(const std::string &pairs) {
       &this->queue_, pairs, [this](size_t endpoint) { return this->light_idle_(endpoint); });
 }
 
-bool YiscaxiaController::request_state(int endpoint, const k80_controller_state &state, bool once) {
+bool YiscaxiaController::request_state(int endpoint, const k80_control_values &state, bool once) {
   return k80_controller_request_state_attempts(&this->queue_, endpoint, &state, once ? 1 : 0);
 }
 
@@ -81,7 +81,7 @@ void YiscaxiaController::loop() {
   }
 
   int endpoint = -1;
-  k80_controller_state state{};
+  k80_control_values state{};
   if (!k80_controller_take_state(&this->queue_, this->transport_->now_us(), &endpoint, &state)) return;
   const auto &position = this->pending_[endpoint];
   yiscaxia_tx_packet packet{};

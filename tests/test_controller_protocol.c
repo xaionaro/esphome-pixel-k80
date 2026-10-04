@@ -32,7 +32,7 @@ static int check_capture(const char *hex, int valid) {
   unsigned sum = 0;
   for (size_t i = 0; i < 9; ++i) sum += captured[i];
   const int checks_ok = (uint8_t)sum == captured[9] &&
-      k80_controller_crc16(captured, sizeof(captured)) == 0;
+      k80_crc16(captured, sizeof(captured)) == 0;
   int failures = check(checks_ok == valid, "capture validity agrees with index");
   const int built = k80_controller_build_packet(captured[1], captured[3], actual);
   if (valid)
@@ -66,30 +66,30 @@ static void seal(uint8_t body[12]) {
 
 static int check_raw_native_addresses(void) {
   // Synthetic raw-domain bodies, not admission or support for another fixture.
-  const int profile = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_CH1_A;
+  const int profile = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE;
   const char *const group_one[] = {
       "3601000001B4006408584699", "3601000101B400640859EED9"};
   int failures = 0;
   for (int level = 0; level <= 1; ++level) {
-    const k80_controller_state expected = {0,level,1,0,100,1};
+    const k80_control_values expected = {0,level,1,0,100,1};
     uint8_t golden[12], actual[12]; decode(group_one[level], golden);
     failures += check(k80_controller_build_state_packet(profile, 47, 1, &expected, actual) == 0 &&
         memcmp(actual, golden, 12) == 0, "synthetic group1 ON/OFF exact independent golden");
     for (int slot = 0; slot < 48; ++slot) {
-      k80_controller_state decoded = {2,100,74,360,50,9};
+      k80_control_values decoded = {2,100,74,360,50,9};
       failures += check(k80_controller_build_state_packet(profile, slot, 1, &expected, actual) == 0 &&
           memcmp(actual, golden, 12) == 0, "carrier does not alter payload address");
       failures += check(k80_controller_decode_state_packet(profile, slot, 1, golden, &decoded) == 0 &&
           decoded.mode == 0 && decoded.level == level && decoded.ct_index == 1,
           "expected group admits synthetic canonical state");
-      const k80_controller_state before = decoded;
+      const k80_control_values before = decoded;
       failures += check(k80_controller_decode_state_packet(profile, slot, 0, golden, &decoded) == -1 &&
           memcmp(&before, &decoded, sizeof(before)) == 0,
           "valid-integrity wrong group preserves decode output");
     }
   }
   const int invalid[] = {INT_MIN,-1,48,256,INT_MAX};
-  const k80_controller_state expected = {2,1,1,0,100,9};
+  const k80_control_values expected = {2,1,1,0,100,9};
   uint8_t actual[12], sentinel[12]; memset(sentinel, 0xA5, 12);
   for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); ++i) {
     memcpy(actual, sentinel, 12);
@@ -97,22 +97,21 @@ static int check_raw_native_addresses(void) {
         memcmp(actual, sentinel, 12) == 0, "raw slot full-width bounds preserve output");
     failures += check(k80_controller_build_state_packet(profile, 0, invalid[i], &expected, actual) == -1 &&
         memcmp(actual, sentinel, 12) == 0, "raw group full-width bounds preserve output");
-    k80_controller_state decoded = expected;
+    k80_control_values decoded = expected;
     uint8_t golden[12]; decode(group_one[1], golden);
     failures += check(k80_controller_decode_state_packet(profile, invalid[i], 1, golden, &decoded) == -1 &&
         k80_controller_decode_state_packet(profile, 0, invalid[i], golden, &decoded) == -1 &&
         memcmp(&expected, &decoded, sizeof(decoded)) == 0, "invalid expected address preserves decoded state");
   }
-  failures += check(K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_CH1_A == K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE &&
-      k80_controller_profile_is_native(profile) &&
+  failures += check(k80_controller_profile_is_native(profile) &&
       !k80_controller_profile_is_native(K80_CONTROLLER_SEMANTIC_PROFILE_CCT_2700),
-      "native compatibility alias shares one capability predicate");
+      "native profile uses the capability predicate");
   for (int slot = 0; slot < 48; ++slot) {
     for (int group = 0; group < 6; ++group) {
       failures += check(k80_controller_build_state_packet(profile, slot, group, &expected, actual) == 0 &&
           actual[1] == group && independent_crc(actual, 12) == 0,
           "all bounded synthetic ON addresses retain group and integrity");
-      k80_controller_state off = expected; off.level = 0;
+      k80_control_values off = expected; off.level = 0;
       failures += check(k80_controller_build_state_packet(profile, slot, group, &off, actual) == 0 &&
           actual[1] == group && actual[2] == 0 && actual[3] == 0 && independent_crc(actual, 12) == 0,
           "all bounded synthetic OFF addresses retain group and canonical mode");
@@ -129,7 +128,7 @@ static int check_raw_frequency_profile(void) {
       {0x36,0,2,1,0,0,0,100,9}};
   for (int slot = 0; slot < 48; ++slot) for (int group = 0; group < 6; ++group) {
     for (int mode = 0; mode < 3; ++mode) {
-      k80_controller_state state = {mode,1,74,300,50,9}, decoded;
+      k80_control_values state = {mode,1,74,300,50,9}, decoded;
       uint8_t expected[12] = {0}, actual[12];
       memcpy(expected, prefixes[mode], 9); expected[1] = (uint8_t)group; seal(expected);
       failures += check(k80_controller_build_state_packet(5,slot,group,&state,actual) == 0 &&
@@ -145,10 +144,10 @@ static int check_raw_frequency_profile(void) {
     }
   }
   const int invalid[] = {INT_MIN,-1,48,256,INT_MAX};
-  const k80_controller_state state = {1,1,1,300,50,1};
+  const k80_control_values state = {1,1,1,300,50,1};
   for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); ++i) {
     uint8_t output[12], before[12]; memset(before,0xA5,12); memcpy(output,before,12);
-    k80_controller_state decoded = state;
+    k80_control_values decoded = state;
     failures += check(!k80_controller_profile_address_valid(5,invalid[i],0) &&
         !k80_controller_profile_address_valid(5,0,invalid[i]) &&
         k80_controller_build_state_packet(5,invalid[i],0,&state,output) == -1 &&
@@ -184,13 +183,13 @@ static int check_native(void) {
         return check(0, "explicit raw native profile admits all 288 syntactic tuples");
     }
   }
-  const int profile = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_CH1_A;
+  const int profile = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE;
   // Measured labels are independent of either codec direction. Unused fields
   // are valid builder inputs, not assertions about retained desired state.
   static const struct {
     const char *label;
     const char *hex;
-    k80_controller_state expected;
+    k80_control_values expected;
   } goldens[] = {
     {"CCT2700 1%", "3600000101B40064085815DB", {0,1,1,0,100,1}},
     {"canonical OFF", "3600000001B4006408575C55", {0,0,1,0,100,1}},
@@ -215,35 +214,35 @@ static int check_native(void) {
   int failures = 0;
   for (size_t i = 0; i < sizeof(goldens)/sizeof(goldens[0]); ++i) {
     uint8_t body[12], rebuilt[12]; decode(goldens[i].hex, body);
-    const k80_controller_state *expected = &goldens[i].expected;
-    k80_controller_state state = {0, 1, 1, 0, 100, 1};
+    const k80_control_values *expected = &goldens[i].expected;
+    k80_control_values state = {0, 1, 1, 0, 100, 1};
     failures += check(independent_crc(body, 12) == 0, "independent golden CRC");
     failures += check(k80_controller_decode_state_packet(profile, 0, 0, body, &state) == 0,
                       "native golden admitted");
     const int semantic_ok = state.mode == expected->mode && state.level == expected->level &&
-        (state.mode != K80_CONTROLLER_MODE_CCT || state.ct_index == expected->ct_index) &&
-        (state.mode != K80_CONTROLLER_MODE_HSI ||
+        (state.mode != K80_MODE_CCT || state.ct_index == expected->ct_index) &&
+        (state.mode != K80_MODE_HSI ||
          (state.hue == expected->hue && state.saturation == expected->saturation)) &&
-        (state.mode != K80_CONTROLLER_MODE_FLS || state.effect == expected->effect);
+        (state.mode != K80_MODE_FLS || state.effect == expected->effect);
     failures += check(semantic_ok, "native golden decodes to independently labeled active fields");
     const int encoding_ok = k80_controller_build_state_packet(profile, 0, 0, expected, rebuilt) == 0 &&
         memcmp(body, rebuilt, 12) == 0;
     failures += check(encoding_ok, "independently labeled state encodes exact native golden");
     if (!semantic_ok || !encoding_ok) fprintf(stderr, "native golden: %s\n", goldens[i].label);
     for (int byte = 0; byte < 12; ++byte) {
-      k80_controller_state unchanged = state, output = state;
+      k80_control_values unchanged = state, output = state;
       body[byte] ^= 1;
       failures += check(k80_controller_decode_state_packet(profile, 0, 0, body, &output) == -1 &&
           memcmp(&output, &unchanged, sizeof(output)) == 0, "corruption preserves decode output");
       body[byte] ^= 1;
     }
   }
-  k80_controller_state state = {1, 1, 1, 300, 50, 1};
+  k80_control_values state = {1, 1, 1, 300, 50, 1};
   const int invalid[] = {INT_MIN, -1, 361, 65536, INT_MAX};
   uint8_t body[12], unchanged[12]; memset(unchanged, 0xA5, 12);
   for (int field = 0; field < 6; ++field) {
     for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); ++i) {
-      k80_controller_state bad = state;
+      k80_control_values bad = state;
       switch (field) {
         case 0: bad.mode = invalid[i]; break;
         case 1: bad.level = invalid[i]; break;
@@ -264,7 +263,7 @@ static int check_native(void) {
         memcmp(off, body, 12) == 0, "OFF canonicalizes every mode");
   }
   state.level = 1;
-  const k80_controller_state upper_bad[] = {
+  const k80_control_values upper_bad[] = {
     {3,1,1,0,100,1}, {0,101,1,0,100,1}, {0,1,75,0,100,1},
     {0,1,1,361,100,1}, {0,1,1,0,101,1}, {0,1,1,0,100,0}, {0,1,1,0,100,10},
   };
@@ -274,7 +273,7 @@ static int check_native(void) {
         memcmp(body, unchanged, 12) == 0, "inactive field domain boundaries are enforced");
   }
   for (int mode = 0; mode <= 2; ++mode) {
-    k80_controller_state edge = {mode, 100, 74, 360, 100, 9}, decoded;
+    k80_control_values edge = {mode, 100, 74, 360, 100, 9}, decoded;
     failures += check(k80_controller_build_state_packet(profile, 0, 0, &edge, body) == 0 &&
         k80_controller_decode_state_packet(profile, 0, 0, body, &decoded) == 0 &&
         decoded.mode == mode && decoded.level == 100, "provisional host domain maxima admitted");
@@ -306,7 +305,7 @@ static int check_native(void) {
   }
   for (int byte = 0; byte < 9; ++byte) {
     decode(goldens[0].hex, body); body[byte] = 255; seal(body);
-    k80_controller_state output = state;
+    k80_control_values output = state;
     failures += check(k80_controller_decode_state_packet(profile, 0, 0, body, &output) == -1 &&
         memcmp(&output, &state, sizeof(state)) == 0, "intact unknown body rejected without guessing");
   }
@@ -378,9 +377,9 @@ int main(int argc, char **argv) {
   failures += check(k80_controller_build_profile_packet(
       K80_CONTROLLER_SEMANTIC_PROFILE_CCT_2700, 0, 0, 1, NULL) == -1,
       "captured profile rejects null output");
-  failures += check(k80_controller_crc16((const uint8_t *)"123456789", 9) == 0xE5CC,
+  failures += check(k80_crc16((const uint8_t *)"123456789", 9) == 0xE5CC,
                     "standard CRC check vector");
-  failures += check(k80_controller_crc16(NULL, 0) == 0x1D0F, "empty CRC preserves initial state");
+  failures += check(k80_crc16(NULL, 0) == 0x1D0F, "empty CRC preserves initial state");
   for (int group = 0; group < 6; ++group) {
     for (int endpoint = 0; endpoint < 2; ++endpoint)
       failures += check_capture(endpoints[group][endpoint], 1);
@@ -396,7 +395,7 @@ int main(int argc, char **argv) {
       failures += check(k80_controller_build_profile_packet(
           K80_CONTROLLER_SEMANTIC_PROFILE_BRIGHTNESS, 32, group, level, profiled) == 0 &&
           memcmp(profiled, body, 12) == 0,
-          "legacy profile dispatch preserves all six seeds on an independent slot");
+          "captured brightness profile preserves all six seeds on an independent slot");
       failures += check(body[3] == level && guarded[0] == 0xA5 && guarded[13] == 0xA5,
                         "requested level and exact twelve-byte write boundary");
       unsigned sum = 0;
@@ -405,7 +404,7 @@ int main(int argc, char **argv) {
         if (i != 3)
           failures += check(body[i] == seed[i], "group-specific opaque state stays unchanged");
       }
-      failures += check(body[9] == (uint8_t)sum && k80_controller_crc16(body, 12) == 0,
+      failures += check(body[9] == (uint8_t)sum && k80_crc16(body, 12) == 0,
                         "all generated packets have additive checksum and big-endian CRC");
     }
   }

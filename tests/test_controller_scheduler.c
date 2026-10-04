@@ -11,7 +11,7 @@ int main(void) {
   for (int i = 0; i < 288; ++i)
     raw_endpoints[i] = (k80_controller_endpoint){i / 6, i % 6, 5};
   CHECK(k80_controller_configure(&raw,raw_pending,raw_endpoints,288));
-  k80_controller_state raw_state = {1,1,74,300,50,1}, raw_taken;
+  k80_control_values raw_state = {1,1,74,300,50,1}, raw_taken;
   int raw_endpoint = -1;
   CHECK(k80_controller_begin_drain(&raw));
   CHECK(k80_controller_request_state(&raw,287,&raw_state));
@@ -41,7 +41,7 @@ int main(void) {
   for (int i = 0; i < 18; ++i)
     measured_endpoints[i] = (k80_controller_endpoint){i / 6, i % 6, 4};
   CHECK(k80_controller_configure(&measured, measured_pending, measured_endpoints, 18));
-  k80_controller_state measured_state = {1, 1, 1, 120, 100, 1}, measured_taken;
+  k80_control_values measured_state = {1, 1, 1, 120, 100, 1}, measured_taken;
   CHECK(k80_controller_begin_drain(&measured));
   CHECK(k80_controller_request_state(&measured, 17, &measured_state));
   int measured_endpoint = -1;
@@ -90,7 +90,7 @@ int main(void) {
   const k80_controller_endpoint fourth_endpoint = {3, 5, 4};
   CHECK(k80_controller_configure(&fourth, &fourth_pending, &fourth_endpoint, 1));
   CHECK(k80_controller_begin_drain(&fourth));
-  const k80_controller_state fourth_off = {0,0,1,0,100,1};
+  const k80_control_values fourth_off = {0,0,1,0,100,1};
   CHECK(k80_controller_request_state(&fourth, 0, &fourth_off));
   CHECK(!k80_controller_take_state(&fourth, 0, &measured_endpoint, &measured_taken));
   k80_controller_end_drain(&fourth);
@@ -98,7 +98,7 @@ int main(void) {
   CHECK(!k80_controller_take_state(&fourth, 0, &measured_endpoint, &measured_taken));
   for (int mode = 0; mode <= 2; ++mode) {
     for (int effect = 1; effect <= 9; ++effect) {
-      const k80_controller_state command = {mode,1,1,0,100,effect};
+      const k80_control_values command = {mode,1,1,0,100,effect};
       CHECK(k80_controller_request_state(&fourth, 0, &command));
       CHECK(k80_controller_take_state(&fourth, 0, &measured_endpoint, &measured_taken));
       CHECK(measured_taken.mode == mode && measured_taken.level == 1 &&
@@ -129,7 +129,7 @@ int main(void) {
       untouched.semantic_profile = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE;
       snapshot = untouched;
       rejected_native.pending = &untouched; rejected_native.count = 1; rejected_native.armed = 1;
-      const k80_controller_state state = {2,1,1,0,100,9};
+      const k80_control_values state = {2,1,1,0,100,9};
       CHECK(!k80_controller_request_state(&rejected_native, 0, &state));
       CHECK(!k80_controller_request(&rejected_native, 0, .01f));
       CHECK(memcmp(&untouched, &snapshot, sizeof(untouched)) == 0);
@@ -138,10 +138,10 @@ int main(void) {
   k80_controller_queue native = {0};
   k80_controller_pending native_pending[2];
   const k80_controller_endpoint native_endpoints[] = {
-    {0, 0, K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_CH1_A},
+    {0, 0, K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE},
     {2, 1, K80_CONTROLLER_SEMANTIC_PROFILE_BRIGHTNESS}};
   CHECK(k80_controller_configure(&native, native_pending, native_endpoints, 2));
-  k80_controller_state desired = {1, 1, 1, 300, 50, 1}, taken;
+  k80_control_values desired = {1, 1, 1, 300, 50, 1}, taken;
   int native_endpoint = -1;
   CHECK(!k80_controller_request_state(&native, 0, &desired));
   CHECK(k80_controller_begin_drain(&native));
@@ -195,7 +195,7 @@ int main(void) {
   CHECK(k80_controller_take_state(&native, 0, &native_endpoint, &taken));
   CHECK(native_endpoint == 0 && taken.level == 0 && taken.effect == 8);
   uint8_t off[12];
-  CHECK(k80_controller_build_state_packet(K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_CH1_A,
+  CHECK(k80_controller_build_state_packet(K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE,
         0, 0, &taken, off) == 0 && off[2] == 0 && off[3] == 0 && off[4] == 1);
   k80_controller_started(&native, 100);
   CHECK(k80_controller_take_state(&native, 150099, &native_endpoint, &taken));

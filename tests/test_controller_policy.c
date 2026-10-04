@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
   CHECK(k80_controller_request(&queue, 1, .01f));
   CHECK(k80_controller_request(&queue, 2, .01f));
   int endpoint = -1;
-  k80_controller_state state = {0};
+  k80_control_values state = {0};
   if (argc == 2 && strcmp(argv[1], "fairness") == 0) goto fairness;
   CHECK(k80_controller_take_state(&queue, 0, &endpoint, &state));
   CHECK(endpoint == 0);
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
   CHECK(!k80_controller_set_attempts(&queue, 256));
   const unsigned remaining = pending[0].remaining;
   CHECK(k80_controller_set_attempts(&queue, 5));
-  k80_controller_state automatic = pending[1].state;
+  k80_control_values automatic = pending[1].state;
   automatic.hue = 1;
   CHECK(k80_controller_request_state_attempts(&queue, 1, &automatic, 1));
   CHECK(queue.attempts == 5 && pending[1].remaining == 1);
@@ -92,7 +92,7 @@ fairness: ;
   unsigned seen[12] = {0};
   for (uint64_t now = 0; now < 4000000; now += 1000) {
     if (now % 1000000 == 0) {
-      const k80_controller_state phase = {1, 1, 1, (int)(now / 1000000), 100, 1};
+      const k80_control_values phase = {1, 1, 1, (int)(now / 1000000), 100, 1};
       for (int i = 0; i < 12; ++i)
         CHECK(k80_controller_request_state_attempts(&fair, i, &phase, attempts));
     }
