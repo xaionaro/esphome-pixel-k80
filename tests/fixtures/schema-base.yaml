@@ -1,0 +1,32 @@
+esphome:
+  name: yiscaxia-schema
+  build_path: build
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+external_components:
+  - source:
+      type: local
+      path: '@COMPONENTS@'
+    components: [yiscaxia]
+spi:
+  id: radio_spi
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+  miso_pin: GPIO19
+yiscaxia:
+  id: pixel_controller
+  transport:
+    type: md7105
+    spi_id: radio_spi
+    cs_pin: GPIO5
+  available_pairs:
+    id: pixel_pairs
+    name: Available pairs
+  transmission_attempts:
+    id: pixel_attempts
+    name: Transmission attempts
+  channel_spacing:
+    id: pixel_spacing
+    name: Channel spacing

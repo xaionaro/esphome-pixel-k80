@@ -1,0 +1,4 @@
+esphome:
+  on_boot:
+    then:
+      - light.turn_on: {id: pixel_controller_position_1, effect: Unlisted effect}

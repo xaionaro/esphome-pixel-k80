@@ -1,0 +1,43 @@
+esphome:
+  devices:
+    - id: panel_a
+      name: Panel A
+    - id: panel_b
+      name: Panel B
+yiscaxia:
+  - id: controller_a
+    name_prefix: Panel A
+    transport:
+      type: md7105
+      spi_id: radio_spi
+      cs_pin: GPIO5
+    available_pairs:
+      id: pairs_a
+      name: Available pairs
+      device_id: panel_a
+    transmission_attempts:
+      id: attempts_a
+      name: Transmission attempts
+      device_id: panel_a
+    channel_spacing:
+      id: spacing_a
+      name: Channel spacing
+      device_id: panel_a
+  - id: controller_b
+    name_prefix: Panel B
+    transport:
+      type: md7105
+      spi_id: radio_spi
+      cs_pin: GPIO22
+    available_pairs:
+      id: pairs_b
+      name: Available pairs
+      device_id: panel_b
+    transmission_attempts:
+      id: attempts_b
+      name: Transmission attempts
+      device_id: panel_b
+    channel_spacing:
+      id: spacing_b
+      name: Channel spacing
+      device_id: panel_b

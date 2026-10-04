@@ -1,0 +1,48 @@
+esphome:
+  name: yiscaxia-controller
+  friendly_name: Pixel K80 Controller
+
+esp32:
+  board: seeed_xiao_esp32c5
+  variant: esp32c5
+  framework:
+    type: esp-idf
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [yiscaxia]
+
+logger:
+api:
+ota:
+  - platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+spi:
+  id: radio_spi
+  clk_pin: GPIO8
+  mosi_pin: GPIO10
+  miso_pin: GPIO9
+
+yiscaxia:
+  id: pixel_controller
+  transport:
+    type: md7105
+    spi_id: radio_spi
+    cs_pin: GPIO1
+  name_prefix: Pixel K80
+  position_capacity: 12
+  initial_pairs: 1A,1B,1C,1D,1E,1F
+  available_pairs:
+    id: pixel_pairs
+    name: Available channel and group pairs
+  transmission_attempts:
+    id: pixel_attempts
+    name: Transmission attempts
+  channel_spacing:
+    id: pixel_spacing
+    name: Channel transmission spacing
