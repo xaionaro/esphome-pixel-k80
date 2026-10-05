@@ -18,41 +18,6 @@ constexpr int decimal(const char *text, int maximum) {
   return value;
 }
 
-constexpr bool equal(const char *left, const char *right) {
-  while (*left && *left == *right) { ++left; ++right; }
-  return *left == *right;
-}
-
-constexpr int profile(const char *text) {
-  if (!text) return K80_CONTROLLER_SEMANTIC_PROFILE_NONE;
-  return equal(text, "brightness") ? K80_CONTROLLER_SEMANTIC_PROFILE_BRIGHTNESS :
-      equal(text, "cct_2700") ? K80_CONTROLLER_SEMANTIC_PROFILE_CCT_2700 :
-      equal(text, "native") ? K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE :
-      equal(text, "native_measured_frequency") ? K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_MEASURED_FREQUENCY :
-      equal(text, "native_raw_frequency") ? K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY :
-      K80_CONTROLLER_SEMANTIC_PROFILE_NONE;
-}
-
-constexpr k80_controller_endpoint endpoint(const char *slot, const char *group,
-    const char *semantic_profile) {
-  return {decimal(slot, K80_CONTROLLER_RF_SLOT_COUNT - 1),
-      decimal(group, K80_GROUP_COUNT - 1), profile(semantic_profile)};
-}
-
-template <size_t Count>
-constexpr bool valid(const k80_controller_endpoint (&endpoints)[Count]) {
-  if (Count == 0 || Count > K80_CONTROLLER_ENDPOINT_LIMIT) return false;
-  for (size_t i = 0; i < Count; ++i) {
-    const auto &item = endpoints[i];
-    if (!k80_controller_profile_address_valid(item.semantic_profile,
-            item.rf_slot, item.rf_group)) return false;
-    for (size_t j = 0; j < i; ++j)
-      if (item.rf_slot == endpoints[j].rf_slot && item.rf_group == endpoints[j].rf_group)
-        return false;
-  }
-  return true;
-}
-
 // Validate the complete table before applying it, permitting address swaps
 // without a transient duplicate. Disabled entries do not reserve an address.
 inline bool apply_addresses(k80_controller_queue *queue,
