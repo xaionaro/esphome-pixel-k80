@@ -53,35 +53,17 @@ constexpr bool valid(const k80_controller_endpoint (&endpoints)[Count]) {
   return true;
 }
 
-// A complete table permits swapping addresses without a transient duplicate.
-inline bool replace_addresses(k80_controller_queue *queue, const std::string &text,
-    std::function<bool(size_t)> light_idle = nullptr) {
-  if (!queue || !queue->pending || queue->count == 0 ||
-      queue->count > K80_CONTROLLER_ENDPOINT_LIMIT ||
-      text.find('\0') != std::string::npos) return false;
-  k80_controller_endpoint proposed[K80_CONTROLLER_ENDPOINT_LIMIT];
-  size_t cursor = 0;
+// Validate the complete table before applying it, permitting address swaps
+// without a transient duplicate. Disabled entries do not reserve an address.
+inline bool apply_addresses(k80_controller_queue *queue,
+    const k80_controller_endpoint *proposed, const std::function<bool(size_t)> &light_idle) {
   for (size_t i = 0; i < queue->count; ++i) {
-    const size_t colon = text.find(':', cursor);
-    const size_t comma = text.find(',', cursor);
-    const size_t end = comma == std::string::npos ? text.size() : comma;
-    if ((i + 1 == queue->count) != (comma == std::string::npos)) return false;
-    if (text.substr(cursor, end - cursor) == "-") {
-      proposed[i] = {-1, -1, queue->pending[i].semantic_profile};
-      cursor = end + 1;
-      continue;
-    }
-    if (colon == std::string::npos || colon >= end) return false;
-    const auto slot = text.substr(cursor, colon - cursor);
-    const auto group = text.substr(colon + 1, end - colon - 1);
-    proposed[i] = endpoint(slot.c_str(), group.c_str(), "brightness");
-    proposed[i].semantic_profile = queue->pending[i].semantic_profile;
+    if (proposed[i].rf_slot < 0) continue;
     if (!k80_controller_profile_address_valid(proposed[i].semantic_profile,
             proposed[i].rf_slot, proposed[i].rf_group)) return false;
     for (size_t j = 0; j < i; ++j)
       if (proposed[i].rf_slot == proposed[j].rf_slot &&
           proposed[i].rf_group == proposed[j].rf_group) return false;
-    cursor = end + 1;
   }
   bool changed = false;
   // OFF must finish at the old address before a light can be retargeted.
@@ -105,6 +87,32 @@ inline bool replace_addresses(k80_controller_queue *queue, const std::string &te
   return true;
 }
 
+inline bool replace_addresses(k80_controller_queue *queue, const std::string &text,
+    std::function<bool(size_t)> light_idle = nullptr) {
+  if (!queue || !queue->pending || queue->count == 0 ||
+      queue->count > K80_CONTROLLER_ENDPOINT_LIMIT ||
+      text.find('\0') != std::string::npos) return false;
+  k80_controller_endpoint proposed[K80_CONTROLLER_ENDPOINT_LIMIT];
+  size_t cursor = 0;
+  for (size_t i = 0; i < queue->count; ++i) {
+    const size_t colon = text.find(':', cursor);
+    const size_t comma = text.find(',', cursor);
+    const size_t end = comma == std::string::npos ? text.size() : comma;
+    if ((i + 1 == queue->count) != (comma == std::string::npos)) return false;
+    proposed[i] = {-1, -1, queue->pending[i].semantic_profile};
+    if (text.substr(cursor, end - cursor) != "-") {
+      if (colon == std::string::npos || colon >= end) return false;
+      const auto slot = text.substr(cursor, colon - cursor);
+      const auto group = text.substr(colon + 1, end - colon - 1);
+      proposed[i].rf_slot = decimal(slot.c_str(), K80_CONTROLLER_RF_SLOT_COUNT - 1);
+      proposed[i].rf_group = decimal(group.c_str(), K80_GROUP_COUNT - 1);
+      if (proposed[i].rf_slot < 0 || proposed[i].rf_group < 0) return false;
+    }
+    cursor = end + 1;
+  }
+  return apply_addresses(queue, proposed, light_idle);
+}
+
 inline std::string addresses(const k80_controller_queue &queue) {
   std::string result;
   for (size_t i = 0; i < queue.count; ++i) {
@@ -122,36 +130,37 @@ inline std::string addresses(const k80_controller_queue &queue) {
 // Public channel numbers are one-based; the RF codec remains zero-based.
 // CH1..5 -> slots0..4 is measured; higher channels use the same model, not
 // a claim of physical validation on every lamp.
-// TODO: Parse public pairs directly into a shared parsed-table transaction;
-// current normalization serializes raw addresses only to parse them again.
 inline bool replace_positions(k80_controller_queue *queue, const std::string &text,
     std::function<bool(size_t)> light_idle = nullptr) {
-  if (!queue || text.size() > 255 || text.find('\0') != std::string::npos) return false;
-  std::string legacy;
+  if (!queue || !queue->pending || queue->count == 0 ||
+      queue->count > K80_CONTROLLER_ENDPOINT_LIMIT ||
+      text.size() > 255 || text.find('\0') != std::string::npos) return false;
+  k80_controller_endpoint proposed[K80_CONTROLLER_ENDPOINT_LIMIT];
   size_t count = 0, cursor = 0;
   while (cursor < text.size()) {
     if (count >= queue->count) return false;
     const size_t comma = text.find(',', cursor);
     const size_t end = comma == std::string::npos ? text.size() : comma;
     const auto entry = text.substr(cursor, end - cursor);
-    if (count++) legacy += ',';
-    if (entry == "-") legacy += '-';
-    else {
+    proposed[count] = {-1, -1, queue->pending[count].semantic_profile};
+    if (entry != "-") {
       if (entry.size() < 2 || entry.back() < 'A' || entry.back() > 'F') return false;
       const auto channel_text = entry.substr(0, entry.size() - 1);
       const int channel = decimal(channel_text.c_str(), K80_CONTROLLER_RF_SLOT_COUNT);
       if (channel < 1) return false;
-      legacy += std::to_string(channel - 1) + ':' + std::to_string(entry.back() - 'A');
+      proposed[count].rf_slot = channel - 1;
+      proposed[count].rf_group = entry.back() - 'A';
     }
+    ++count;
     if (comma == std::string::npos) break;
     cursor = comma + 1;
     if (cursor == text.size()) return false;
   }
   while (count < queue->count) {
-    if (count++) legacy += ',';
-    legacy += '-';
+    proposed[count] = {-1, -1, queue->pending[count].semantic_profile};
+    ++count;
   }
-  return replace_addresses(queue, legacy, light_idle);
+  return apply_addresses(queue, proposed, light_idle);
 }
 
 inline std::string positions(const k80_controller_queue &queue) {
