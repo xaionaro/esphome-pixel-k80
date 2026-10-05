@@ -56,8 +56,7 @@ class YiscaxiaLightOutput final : public light::LightOutput {
 
   void setup_state(light::LightState *state) override {
     this->parent_->register_light(this->endpoint_, state);
-    this->profile_ = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY;
-    if (k80_controller_profile_is_native(this->profile_) && !this->effects_registered_) {
+    if (!this->effects_registered_) {
       state->add_effects({&this->sos_, &this->lightning_1_, &this->lightning_2_, &this->tv_, &this->police_,
                          &this->ambulance_, &this->fire_, &this->circle_1_, &this->circle_2_, &this->rainbow_});
       this->effects_registered_ = true;
@@ -66,12 +65,10 @@ class YiscaxiaLightOutput final : public light::LightOutput {
 
   light::LightTraits get_traits() override {
     auto traits = light::LightTraits();
-    if (k80_controller_profile_is_native(this->profile_)) {
+    if (this->effects_registered_) {
       traits.set_supported_color_modes({light::ColorMode::RGB, light::ColorMode::COLOR_TEMPERATURE});
       traits.set_min_mireds(1000000.0f / static_cast<float>(K80_CT_KELVIN_MAX));
       traits.set_max_mireds(1000000.0f / static_cast<float>(K80_CT_KELVIN_MIN));
-    } else if (this->profile_ != K80_CONTROLLER_SEMANTIC_PROFILE_NONE) {
-      traits.set_supported_color_modes({light::ColorMode::BRIGHTNESS});
     }
     return traits;
   }
@@ -165,7 +162,6 @@ class YiscaxiaLightOutput final : public light::LightOutput {
   static constexpr uint32_t SLOW_RAINBOW_EFFECT_INDEX = K80_NATIVE_EFFECT_MAX + 1;
   YiscaxiaController *parent_;
   const int endpoint_;
-  int profile_{K80_CONTROLLER_SEMANTIC_PROFILE_NONE};
   int last_non_fls_mode_{K80_MODE_CCT};
   bool effects_registered_{false};
   bool automatic_phase_{false};
