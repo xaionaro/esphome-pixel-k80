@@ -25,6 +25,21 @@ function(check_case name content expected diagnostic)
 endfunction()
 
 check_case(default "${base}" TRUE "")
+function(check_typed_positions path expected)
+  file(READ "${path}" code)
+  string(REGEX MATCHALL "new\\([^)]*\\) yiscaxia::YiscaxiaLightState\\(" typed "${code}")
+  list(LENGTH typed count)
+  if(NOT count EQUAL expected OR code MATCHES "new\\([^)]*\\) light::LightState\\(")
+    message(FATAL_ERROR "Expected ${expected} typed position states in ${path}, got ${count}")
+  endif()
+endfunction()
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env PYTHONDONTWRITEBYTECODE=1
+    "${ESPHOME_EXECUTABLE}" compile "${OUTPUT_DIR}/default.yaml" --only-generate
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 120)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "default codegen failed: ${output}${error}")
+endif()
+check_typed_positions("${OUTPUT_DIR}/build/src/main.cpp" 12)
 foreach(capacity IN ITEMS 6 12 64)
   string(REPLACE "  id: pixel_controller\n" "  id: pixel_controller\n  position_capacity: ${capacity}\n" content "${base}")
   check_case(capacity-${capacity} "${content}" TRUE "")
@@ -71,6 +86,7 @@ endforeach()
 file(READ "${PROJECT_DIR}/tests/fixtures/static-effects.yaml" effects)
 string(REPLACE "esphome:\n" "" effects "${effects}")
 string(REPLACE "  build_path: ${OUTPUT_DIR}/build\n" "  build_path: ${OUTPUT_DIR}/build\n${effects}" content "${base}")
+string(APPEND content "  rainbow_degrees_per_step:\n    id: pixel_rainbow_step\n    name: Custom Rainbow degrees per step\n  rainbow_step_spacing:\n    id: pixel_rainbow_spacing\n    name: Custom Rainbow step spacing\n")
 check_case(static-effects "${content}" TRUE "")
 execute_process(COMMAND "${CMAKE_COMMAND}" -E env PYTHONDONTWRITEBYTECODE=1
     "${ESPHOME_EXECUTABLE}" compile "${OUTPUT_DIR}/static-effects.yaml" --only-generate
@@ -79,12 +95,17 @@ if(NOT result EQUAL 0)
   message(FATAL_ERROR "static-effects codegen failed: ${output}${error}")
 endif()
 file(READ "${OUTPUT_DIR}/build/src/main.cpp" generated)
+check_typed_positions("${OUTPUT_DIR}/build/src/main.cpp" 12)
 foreach(boundary IN ITEMS
     "pixel_pairs->traits.set_max_length(47)"
     "pixel_attempts->traits.set_min_value(1)"
-    "pixel_attempts->traits.set_max_value(255)"
+    "pixel_attempts->traits.set_max_value(yiscaxia::configuration_setting_max(yiscaxia::YiscaxiaSetting::TRANSMISSION_ATTEMPTS))"
     "pixel_spacing->traits.set_min_value(1)"
-    "pixel_spacing->traits.set_max_value(65535)")
+    "pixel_spacing->traits.set_max_value(yiscaxia::configuration_setting_max(yiscaxia::YiscaxiaSetting::CHANNEL_SPACING))"
+    "pixel_rainbow_step->traits.set_min_value(1)"
+    "pixel_rainbow_step->traits.set_max_value(yiscaxia::configuration_setting_max(yiscaxia::YiscaxiaSetting::RAINBOW_STEP_DEGREES))"
+    "pixel_rainbow_spacing->traits.set_min_value(1)"
+    "pixel_rainbow_spacing->traits.set_max_value(yiscaxia::configuration_setting_max(yiscaxia::YiscaxiaSetting::RAINBOW_STEP_SPACING))")
   string(FIND "${generated}" "${boundary}" found)
   if(found LESS 0)
     message(FATAL_ERROR "Missing generated entity boundary: ${boundary}")
@@ -102,7 +123,9 @@ endif()
 file(READ "${PROJECT_DIR}/tests/fixtures/unknown-effect.yaml" effects)
 string(REPLACE "esphome:\n" "" effects "${effects}")
 string(REPLACE "  build_path: ${OUTPUT_DIR}/build\n" "  build_path: ${OUTPUT_DIR}/build\n${effects}" content "${base}")
-check_case(unknown-effect "${content}" FALSE "Available effects:.*SOS.*Slow Rainbow")
+check_case(unknown-effect "${content}" FALSE "Available effects:.*SOS.*Custom Rainbow")
+string(REPLACE "Unlisted effect" "Slow Rainbow" legacy_content "${content}")
+check_case(legacy-rainbow-effect "${legacy_content}" FALSE "Available effects:.*SOS.*Custom Rainbow")
 string(REPLACE "  id: pixel_controller\n" "  id: pixel_controller\n  effects: [{lambda: {name: Arbitrary}}]\n" content "${base}")
 check_case(arbitrary-effect "${content}" FALSE "effects.*invalid option|invalid option.*effects")
 file(READ "${PROJECT_DIR}/tests/fixtures/multi-device.yaml" multiple)
@@ -122,6 +145,7 @@ if(NOT result EQUAL 0)
   message(FATAL_ERROR "multi-device codegen failed: ${output}${error}")
 endif()
 file(READ "${OUTPUT_DIR}/multi-build/src/main.cpp" generated)
+check_typed_positions("${OUTPUT_DIR}/multi-build/src/main.cpp" 24)
 foreach(setting IN ITEMS pairs attempts spacing)
   if(NOT generated MATCHES "${setting}_a->set_device_\\(panel_a\\)" OR NOT generated MATCHES "${setting}_b->set_device_\\(panel_b\\)")
     message(FATAL_ERROR "Missing distinct device binding for ${setting}")

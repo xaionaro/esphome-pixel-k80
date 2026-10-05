@@ -18,7 +18,7 @@ GPIOPin *const NullPin::NULL_PIN = nullptr;
 SPIDelegate *const SPIDelegate::NULL_DELEGATE = nullptr;
 bool SPIDelegate::is_ready() { return true; }
 SPIDelegate *SPIComponent::register_device(SPIClient *, SPIMode, SPIBitOrder, uint32_t,
-                                         GPIOPin *, bool, bool) { std::abort(); }
+    GPIOPin *, bool, bool) { std::abort(); }
 void SPIComponent::unregister_device(SPIClient *) { std::abort(); }
 }  // namespace esphome::spi
 
@@ -61,9 +61,11 @@ struct Radio : esphome::spi::SPIDelegate {
         const bool fault_stage = calibration_stage == fault_calibration_stage;
         rx[1] = unexpected_pending && fault_stage ? 7 : stuck_calibration && fault_stage ? registers[reg] : 0;
       } else if (reg == A7105_REG_IF_CALIB) {
-        ++if_reads; rx[1] = if_flags;
+        ++if_reads;
+        rx[1] = if_flags;
       } else if (reg == A7105_REG_VCO_BANK) {
-        ++bank_reads; rx[1] = bank_reads == bank_fail_at ? bank_flags : 0;
+        ++bank_reads;
+        rx[1] = bank_reads == bank_fail_at ? bank_flags : 0;
       } else if (reg == A7105_REG_MODE) {
         ++mode_reads;
         rx[1] = never_active ? 0 : stuck_tx || mode_reads < 4 ? 3 : 0;
@@ -91,7 +93,7 @@ void failed_setup(Transport &transport) {
   CHECK(!transport.ready() && transport.is_failed());
   CHECK(transport.radio.tx_count == 0);
   if (transport.radio.available) {
-    CHECK(transport.radio.operations.back() == std::vector<uint8_t>{A7105_CMD_STANDBY});
+    CHECK(transport.radio.operations.back() == std::vector<uint8_t> {A7105_CMD_STANDBY});
   }
   yiscaxia_tx_packet packet{};
   const auto count = transport.radio.operations.size();
@@ -110,7 +112,7 @@ int main() {
   transport.setup();
   CHECK(transport.setup_count == 1 && transport.ready() && !transport.is_failed());
   auto &radio = transport.radio;
-  CHECK(radio.operations.front() == (std::vector<uint8_t>{0, 0}));
+  CHECK(radio.operations.front() == (std::vector<uint8_t> {0, 0}));
   CHECK(radio.contains({A7105_REG_GIO1, A7105_GIO1_4WIRE_DATA_OUT}));
   CHECK(radio.contains({A7105_REG_GIO2, A7105_GIO2_FSYNC_STATUS}));
   CHECK(radio.contains({A7105_REG_ID_DATA, 0xA5, 0x5A, 0xB9, 0x46}));
@@ -123,16 +125,17 @@ int main() {
   std::vector<std::vector<uint8_t>> calibration;
   bool calibration_started = false;
   for (const auto &operation : radio.operations) {
-    if (operation == std::vector<uint8_t>{A7105_REG_CALIBRATION, A7105_CALIBRATION_IF})
+    if (operation == std::vector<uint8_t> {A7105_REG_CALIBRATION, A7105_CALIBRATION_IF})
       calibration_started = true;
     if (calibration_started && (operation[0] == A7105_REG_CALIBRATION ||
-        operation[0] == (A7105_REG_CALIBRATION | 0x40) ||
-        operation[0] == (A7105_REG_IF_CALIB | 0x40) ||
-        operation[0] == (A7105_REG_VCO_BANK | 0x40))) calibration.push_back(operation);
+                                operation[0] == (A7105_REG_CALIBRATION | 0x40) ||
+                                operation[0] == (A7105_REG_IF_CALIB | 0x40) ||
+                                operation[0] == (A7105_REG_VCO_BANK | 0x40))) calibration.push_back(operation);
   }
-  CHECK(calibration == (std::vector<std::vector<uint8_t>>{
-      {2, 1}, {0x42, 0}, {0x62, 0}, {2, 2}, {0x42, 0}, {0x65, 0},
-      {2, 2}, {0x42, 0}, {0x65, 0}}));
+  CHECK(calibration == (std::vector<std::vector<uint8_t>> {
+    {2, 1}, {0x42, 0}, {0x62, 0}, {2, 2}, {0x42, 0}, {0x65, 0},
+    {2, 2}, {0x42, 0}, {0x65, 0}
+  }));
   CHECK(radio.registers[A7105_REG_VCO_CURRENT] == A7105_VCO_CURRENT_RECOMMENDED);
   CHECK(radio.registers[A7105_REG_VCO_THRESH] == A7105_VCO_THRESH_RECOMMENDED);
   CHECK(radio.begin_count == radio.operations.size() && radio.end_count == radio.begin_count);
@@ -152,7 +155,7 @@ int main() {
   CHECK(result.error == 0 && result.completed && result.restored && result.trigger_attempted);
   CHECK(transport.ready() && radio.tx_count == 1);
   CHECK(radio.registers[A7105_REG_PLL_CHANNEL] == a7105_probe_rf_channel_for_slot(A7105_TX_RX_RESTORE_CHANNEL_SLOT));
-  CHECK(radio.operations.back() == std::vector<uint8_t>{A7105_CMD_RX_FIFO_RESET});
+  CHECK(radio.operations.back() == std::vector<uint8_t> {A7105_CMD_RX_FIFO_RESET});
   CHECK(radio.contains({A7105_REG_PLL_CHANNEL, 0x97}));
   unsigned fifo_count = 0;
   for (const auto &operation : radio.operations) {

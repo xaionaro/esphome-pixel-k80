@@ -46,3 +46,9 @@ yiscaxia:
   channel_spacing:
     id: pixel_spacing
     name: Channel transmission spacing
+  rainbow_degrees_per_step:
+    id: pixel_rainbow_step
+    name: Custom Rainbow degrees per step
+  rainbow_step_spacing:
+    id: pixel_rainbow_spacing
+    name: Custom Rainbow step spacing

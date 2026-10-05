@@ -16,16 +16,16 @@ enum {
 };
 
 typedef enum {
-  K80_CONTROLLER_SEMANTIC_PROFILE_NONE = 0,
-  K80_CONTROLLER_SEMANTIC_PROFILE_BRIGHTNESS = 1,
+  K80_CONTROLLER_PROFILE_NONE = 0,
+  K80_CONTROLLER_PROFILE_BRIGHTNESS = 1,
   // Exact captured CCT2700 state at raw slot0/group0; only byte3 varies.
-  K80_CONTROLLER_SEMANTIC_PROFILE_CCT_2700 = 2,
-  K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE = 3,
+  K80_CONTROLLER_PROFILE_CCT_2700 = 2,
+  K80_CONTROLLER_PROFILE_NATIVE = 3,
   // Explicit experimental opt-in on measured carriers; no fixture ACK implied.
-  K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_MEASURED_FREQUENCY = 4,
+  K80_CONTROLLER_PROFILE_NATIVE_MEASURED_FREQUENCY = 4,
   // Explicit experimental raw-address opt-in; no UI mapping or fixture ACK implied.
-  K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY = 5,
-} k80_controller_semantic_profile;
+  K80_CONTROLLER_PROFILE_NATIVE_RAW_FREQUENCY = 5,
+} k80_controller_profile;
 
 #ifdef __cplusplus
 #define K80_CONTROLLER_CONSTEXPR constexpr
@@ -34,25 +34,25 @@ typedef enum {
 #endif
 
 static inline K80_CONTROLLER_CONSTEXPR int k80_controller_profile_is_native(int profile) {
-  return profile == K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE ||
-      profile == K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_MEASURED_FREQUENCY ||
-      profile == K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY;
+  return profile == K80_CONTROLLER_PROFILE_NATIVE ||
+         profile == K80_CONTROLLER_PROFILE_NATIVE_MEASURED_FREQUENCY ||
+         profile == K80_CONTROLLER_PROFILE_NATIVE_RAW_FREQUENCY;
 }
 
 static inline K80_CONTROLLER_CONSTEXPR int k80_controller_raw_address_valid(int slot, int group) {
   return slot >= 0 && slot < K80_CONTROLLER_RF_SLOT_COUNT &&
-      group >= 0 && group < K80_GROUP_COUNT;
+         group >= 0 && group < K80_GROUP_COUNT;
 }
 
 // Live admission, not the pure codec's syntactic raw-address domain.
 static inline K80_CONTROLLER_CONSTEXPR int k80_controller_profile_address_valid(int profile, int slot, int group) {
   if (!k80_controller_raw_address_valid(slot, group)) return 0;
-  if (profile == K80_CONTROLLER_SEMANTIC_PROFILE_CCT_2700) return slot == 0 && group == 0;
-  if (profile == K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE) return slot == 0 && group == 0;
-  if (profile == K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_MEASURED_FREQUENCY)
+  if (profile == K80_CONTROLLER_PROFILE_CCT_2700) return slot == 0 && group == 0;
+  if (profile == K80_CONTROLLER_PROFILE_NATIVE) return slot == 0 && group == 0;
+  if (profile == K80_CONTROLLER_PROFILE_NATIVE_MEASURED_FREQUENCY)
     return slot <= K80_CONTROLLER_MEASURED_RF_SLOT_MAX;
-  if (profile == K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY) return 1;
-  return profile == K80_CONTROLLER_SEMANTIC_PROFILE_BRIGHTNESS;
+  if (profile == K80_CONTROLLER_PROFILE_NATIVE_RAW_FREQUENCY) return 1;
+  return profile == K80_CONTROLLER_PROFILE_BRIGHTNESS;
 }
 
 #undef K80_CONTROLLER_CONSTEXPR
@@ -63,16 +63,16 @@ static inline K80_CONTROLLER_CONSTEXPR int k80_controller_profile_address_valid(
 // per group, and this does not learn subsequent remote state.
 // Return 0 on success, -1 on invalid input without changing output.
 static inline int k80_controller_build_packet(
-    int group, int level, uint8_t output[K80_FRAME_SIZE]) {
+  int group, int level, uint8_t output[K80_FRAME_SIZE]) {
   // Captured zero-level prefixes, sequences 14, 20, 25, 48, 4, 9 in
   // k80-raw-frames-20260919T1817/index.jsonl (2026-09-19).
   static const uint8_t seeds[K80_GROUP_COUNT][9] = {
-      {0x36, 0x00, 0x00, 0x00, 0x00, 0xB4, 0x00, 0x64, 0x08},
-      {0x36, 0x01, 0x00, 0x00, 0x00, 0x04, 0x01, 0x64, 0x08},
-      {0x36, 0x02, 0x00, 0x00, 0x00, 0x37, 0x01, 0x64, 0x08},
-      {0x36, 0x03, 0x00, 0x00, 0x00, 0x78, 0x00, 0x64, 0x01},
-      {0x36, 0x04, 0x00, 0x00, 0x00, 0x78, 0x00, 0x64, 0x01},
-      {0x36, 0x05, 0x00, 0x00, 0x00, 0x78, 0x00, 0x64, 0x01},
+    {0x36, 0x00, 0x00, 0x00, 0x00, 0xB4, 0x00, 0x64, 0x08},
+    {0x36, 0x01, 0x00, 0x00, 0x00, 0x04, 0x01, 0x64, 0x08},
+    {0x36, 0x02, 0x00, 0x00, 0x00, 0x37, 0x01, 0x64, 0x08},
+    {0x36, 0x03, 0x00, 0x00, 0x00, 0x78, 0x00, 0x64, 0x01},
+    {0x36, 0x04, 0x00, 0x00, 0x00, 0x78, 0x00, 0x64, 0x01},
+    {0x36, 0x05, 0x00, 0x00, 0x00, 0x78, 0x00, 0x64, 0x01},
   };
   if (output == NULL || group < 0 || group >= K80_GROUP_COUNT ||
       level < 0 || level > K80_LEVEL_MAX)
@@ -90,10 +90,10 @@ static inline int k80_controller_build_profile_packet(int profile, int slot,
     int group, int level, uint8_t output[K80_FRAME_SIZE]) {
   if (!output || level < 0 || level > K80_LEVEL_MAX ||
       !k80_controller_profile_address_valid(profile, slot, group)) return -1;
-  if (profile == K80_CONTROLLER_SEMANTIC_PROFILE_BRIGHTNESS)
+  if (profile == K80_CONTROLLER_PROFILE_BRIGHTNESS)
     return k80_controller_build_packet(group, level, output);
-  if (profile != K80_CONTROLLER_SEMANTIC_PROFILE_CCT_2700) return -1;
-  static const uint8_t cct_2700[9] = {0x36,0,0,0,1,0xB4,0,0x64,8};
+  if (profile != K80_CONTROLLER_PROFILE_CCT_2700) return -1;
+  static const uint8_t cct_2700[9] = {0x36, 0, 0, 0, 1, 0xB4, 0, 0x64, 8};
   memcpy(output, cct_2700, sizeof(cct_2700));
   output[3] = (uint8_t)level;
   k80_finalize_frame(output);
@@ -116,13 +116,13 @@ static inline int k80_quantize_brightness(float value) {
 static inline int k80_controller_state_valid(int profile, int slot, int group,
     const k80_control_values *state) {
   return state && k80_controller_profile_is_native(profile) &&
-      k80_controller_raw_address_valid(slot, group) &&
-      state->mode >= K80_MODE_CCT && state->mode <= K80_MODE_FLS &&
-      state->level >= 0 && state->level <= K80_LEVEL_MAX &&
-      state->ct_index >= 0 && state->ct_index <= K80_CT_INDEX_MAX &&
-      state->hue >= 0 && state->hue <= K80_HUE_MAX &&
-      state->saturation >= 0 && state->saturation <= K80_SATURATION_MAX &&
-      state->effect >= K80_NATIVE_EFFECT_MIN && state->effect <= K80_NATIVE_EFFECT_MAX;
+         k80_controller_raw_address_valid(slot, group) &&
+         state->mode >= K80_MODE_CCT && state->mode <= K80_MODE_FLS &&
+         state->level >= 0 && state->level <= K80_LEVEL_MAX &&
+         state->ct_index >= 0 && state->ct_index <= K80_CT_INDEX_MAX &&
+         state->hue >= 0 && state->hue <= K80_HUE_MAX &&
+         state->saturation >= 0 && state->saturation <= K80_SATURATION_MAX &&
+         state->effect >= K80_NATIVE_EFFECT_MIN && state->effect <= K80_NATIVE_EFFECT_MAX;
 }
 
 // Parameter ranges are provisional host domains, not proof of every device setting.

@@ -5,8 +5,22 @@ import re
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import light, number, spi, text
-from esphome.const import CONF_DATA_RATE, CONF_EFFECTS, CONF_ID, CONF_NAME, CONF_OUTPUT_ID
+from esphome.const import (
+    CONF_DATA_RATE, CONF_DEFAULT_TRANSITION_LENGTH, CONF_EFFECTS, CONF_GAMMA_CORRECT,
+    CONF_ID, CONF_NAME, CONF_OUTPUT_ID, CONF_RESTORE_MODE, CONF_TYPE,
+)
 from esphome.types import ConfigType
+
+CONF_TRANSPORT = "transport"
+CONF_NAME_PREFIX = "name_prefix"
+CONF_POSITION_CAPACITY = "position_capacity"
+CONF_INITIAL_PAIRS = "initial_pairs"
+CONF_AVAILABLE_PAIRS = "available_pairs"
+CONF_TRANSMISSION_ATTEMPTS = "transmission_attempts"
+CONF_CHANNEL_SPACING = "channel_spacing"
+CONF_RAINBOW_DEGREES_PER_STEP = "rainbow_degrees_per_step"
+CONF_RAINBOW_STEP_SPACING = "rainbow_step_spacing"
+CONF_POSITIONS = "positions"
 
 AUTO_LOAD = ["light", "number", "text", "spi"]
 DEPENDENCIES = ["spi"]
@@ -17,18 +31,20 @@ YiscaxiaController = yiscaxia_ns.class_("YiscaxiaController", cg.Component)
 YiscaxiaTransport = yiscaxia_ns.class_("YiscaxiaTransport", cg.Component)
 Md7105Transport = yiscaxia_ns.class_("Md7105Transport", YiscaxiaTransport, spi.SPIDevice)
 YiscaxiaLightOutput = yiscaxia_ns.class_("YiscaxiaLightOutput", light.LightOutput)
+YiscaxiaLightState = yiscaxia_ns.class_("YiscaxiaLightState", light.LightState)
 YiscaxiaPairs = yiscaxia_ns.class_("YiscaxiaPairs", text.Text, cg.Component)
 YiscaxiaNumber = yiscaxia_ns.class_("YiscaxiaNumber", number.Number, cg.Component)
+YiscaxiaSetting = yiscaxia_ns.enum("YiscaxiaSetting", is_class=True)
 
 BUILTIN_EFFECT_NAMES: tuple[str, ...] = (
     "SOS", "Lightning 1", "Lightning 2", "TV Screen", "Police", "Ambulance",
-    "Fire Engine", "RGB Circle 1", "RGB Circle 2", "Slow Rainbow",
+    "Fire Engine", "RGB Circle 1", "RGB Circle 2", "Custom Rainbow",
 )
 
 TRANSPORT_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(Md7105Transport),
-        cv.Required("type"): cv.one_of("md7105", lower=True),
+        cv.Required(CONF_TYPE): cv.one_of("md7105", lower=True),
     }
 ).extend(spi.spi_device_schema()).extend(
     {
@@ -57,28 +73,31 @@ def validate_pairs(value: str) -> str:
 
 
 def declare_entities(config: ConfigType) -> ConfigType:
-    capacity = config["position_capacity"]
-    pairs = config["initial_pairs"]
+    capacity = config[CONF_POSITION_CAPACITY]
+    pairs = config[CONF_INITIAL_PAIRS]
     if pairs and len(pairs.split(",")) > capacity:
         raise cv.Invalid("initial_pairs exceeds position_capacity")
     prefix = str(config[CONF_ID])
-    config["positions"] = [
+    config[CONF_POSITIONS] = [
         light.RGB_LIGHT_SCHEMA.extend(
-            {cv.GenerateID(CONF_OUTPUT_ID): cv.declare_id(YiscaxiaLightOutput)}
+            {
+                cv.GenerateID(CONF_ID): cv.declare_id(YiscaxiaLightState),
+                cv.GenerateID(CONF_OUTPUT_ID): cv.declare_id(YiscaxiaLightOutput),
+            }
         )(
             {
                 CONF_ID: f"{prefix}_position_{position + 1}",
                 CONF_OUTPUT_ID: f"{prefix}_position_{position + 1}_output",
-                CONF_NAME: f"{config['name_prefix']} Position {position + 1}",
-                "gamma_correct": 1.0,
-                "default_transition_length": "0s",
-                "restore_mode": "RESTORE_DEFAULT_OFF",
+                CONF_NAME: f"{config[CONF_NAME_PREFIX]} Position {position + 1}",
+                CONF_GAMMA_CORRECT: 1.0,
+                CONF_DEFAULT_TRANSITION_LENGTH: "0s",
+                CONF_RESTORE_MODE: "RESTORE_DEFAULT_OFF",
             }
         )
         for position in range(capacity)
     ]
     # Final validation resolves action names from metadata; setup_state owns runtime effects.
-    for position in config["positions"]:
+    for position in config[CONF_POSITIONS]:
         position[CONF_EFFECTS] = [
             {"yiscaxia_builtin": {CONF_NAME: name}} for name in BUILTIN_EFFECT_NAMES
         ]
@@ -89,17 +108,23 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.Required(CONF_ID): cv.declare_id(YiscaxiaController),
-            cv.Required("transport"): TRANSPORT_SCHEMA,
-            cv.Optional("name_prefix", default="Yiscaxia"): cv.string_strict,
-            cv.Optional("position_capacity", default=12): cv.int_range(min=6, max=64),
-            cv.Optional("initial_pairs", default="1A,1B,1C,1D,1E,1F"): validate_pairs,
-            cv.Required("available_pairs"): text.text_schema(
+            cv.Required(CONF_TRANSPORT): TRANSPORT_SCHEMA,
+            cv.Optional(CONF_NAME_PREFIX, default="Yiscaxia"): cv.string_strict,
+            cv.Optional(CONF_POSITION_CAPACITY, default=12): cv.int_range(min=6, max=64),
+            cv.Optional(CONF_INITIAL_PAIRS, default="1A,1B,1C,1D,1E,1F"): validate_pairs,
+            cv.Required(CONF_AVAILABLE_PAIRS): text.text_schema(
                 YiscaxiaPairs, entity_category="config", mode="TEXT"
             ).extend(cv.COMPONENT_SCHEMA),
-            cv.Required("transmission_attempts"): number.number_schema(
+            cv.Required(CONF_TRANSMISSION_ATTEMPTS): number.number_schema(
                 YiscaxiaNumber, entity_category="config"
             ).extend(cv.COMPONENT_SCHEMA),
-            cv.Required("channel_spacing"): number.number_schema(
+            cv.Required(CONF_CHANNEL_SPACING): number.number_schema(
+                YiscaxiaNumber, entity_category="config", unit_of_measurement="ms"
+            ).extend(cv.COMPONENT_SCHEMA),
+            cv.Optional(CONF_RAINBOW_DEGREES_PER_STEP): number.number_schema(
+                YiscaxiaNumber, entity_category="config", unit_of_measurement="°"
+            ).extend(cv.COMPONENT_SCHEMA),
+            cv.Optional(CONF_RAINBOW_STEP_SPACING): number.number_schema(
                 YiscaxiaNumber, entity_category="config", unit_of_measurement="ms"
             ).extend(cv.COMPONENT_SCHEMA),
         }
@@ -112,7 +137,7 @@ CONFIG_SCHEMA = cv.All(
 def final_validate(config: ConfigType) -> ConfigType:
     spi.final_validate_device_schema(
         "yiscaxia", require_mosi=True, require_miso=True
-    )(config["transport"])
+    )(config[CONF_TRANSPORT])
     return config
 
 
@@ -121,27 +146,34 @@ FINAL_VALIDATE_SCHEMA = final_validate
 
 async def to_code(config: ConfigType) -> None:
     parent = cg.new_Pvariable(config[CONF_ID])
-    cg.add(parent.set_position_capacity(config["position_capacity"]))
-    cg.add(parent.set_initial_pairs(config["initial_pairs"]))
+    cg.add(parent.set_position_capacity(config[CONF_POSITION_CAPACITY]))
+    cg.add(parent.set_initial_pairs(config[CONF_INITIAL_PAIRS]))
     await cg.register_component(parent, config)
-    transport_config = config["transport"]
+    transport_config = config[CONF_TRANSPORT]
     transport = cg.new_Pvariable(transport_config[CONF_ID])
     await cg.register_component(transport, transport_config)
     await spi.register_spi_device(transport, transport_config)
     cg.add(parent.set_transport(transport))
-    pairs = cg.new_Pvariable(config["available_pairs"][CONF_ID], parent)
+    pairs = cg.new_Pvariable(config[CONF_AVAILABLE_PAIRS][CONF_ID], parent)
     await text.register_text(
-        pairs, config["available_pairs"], min_length=0,
-        max_length=config["position_capacity"] * 4 - 1,
+        pairs, config[CONF_AVAILABLE_PAIRS], min_length=0,
+        max_length=config[CONF_POSITION_CAPACITY] * 4 - 1,
     )
-    await cg.register_component(pairs, config["available_pairs"])
-    for key, spacing in (("transmission_attempts", False), ("channel_spacing", True)):
+    await cg.register_component(pairs, config[CONF_AVAILABLE_PAIRS])
+    for key, selector in (
+        (CONF_TRANSMISSION_ATTEMPTS, YiscaxiaSetting.TRANSMISSION_ATTEMPTS),
+        (CONF_CHANNEL_SPACING, YiscaxiaSetting.CHANNEL_SPACING),
+        (CONF_RAINBOW_DEGREES_PER_STEP, YiscaxiaSetting.RAINBOW_STEP_DEGREES),
+        (CONF_RAINBOW_STEP_SPACING, YiscaxiaSetting.RAINBOW_STEP_SPACING),
+    ):
+        if key not in config:
+            continue
         setting = await number.new_number(
-            config[key], parent, spacing, min_value=1,
-            max_value=65535 if spacing else 255, step=1,
+            config[key], parent, selector, min_value=1,
+            max_value=cg.RawExpression(f"yiscaxia::configuration_setting_max({selector})"), step=1,
         )
         await cg.register_component(setting, config[key])
-    for position, entity in enumerate(config["positions"]):
+    for position, entity in enumerate(config[CONF_POSITIONS]):
         output = cg.new_Pvariable(entity[CONF_OUTPUT_ID], parent, position)
         registration = dict(entity)
         registration.pop(CONF_EFFECTS, None)

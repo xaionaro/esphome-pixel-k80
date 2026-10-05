@@ -35,7 +35,7 @@ static int check(int condition, const char *message) {
 }
 static int last_write(struct fake *f, uint8_t reg) {
   for (unsigned i = f->calls; i > 0; --i)
-    if (f->lengths[i-1] == 2 && f->bytes[i-1][0] == reg) return f->bytes[i-1][1];
+    if (f->lengths[i - 1] == 2 && f->bytes[i - 1][0] == reg) return f->bytes[i - 1][1];
   return -1;
 }
 int main(void) {
@@ -78,21 +78,22 @@ int main(void) {
     }
     failures += check(r.error == 0 && r.completed && r.restored && f.tx_count == 1 &&
                       last_write(&f, A7105_REG_PLL_CHANNEL) ==
-                          a7105_probe_rf_channel_for_slot(
-                              A7105_TX_RX_RESTORE_CHANNEL_SLOT),
+                      a7105_probe_rf_channel_for_slot(
+                        A7105_TX_RX_RESTORE_CHANNEL_SLOT),
                       "each endpoint carrier restores the configured RX return slot");
-    failures += check(selected_write && f.lengths[selected_write-1] == 2 &&
-                      f.bytes[selected_write-1][0] == 0x0F, "retune operation located before FIFO");
-    memset(&f, 0, sizeof(f)); f.fail_at = selected_write;
+    failures += check(selected_write && f.lengths[selected_write - 1] == 2 &&
+                      f.bytes[selected_write - 1][0] == 0x0F, "retune operation located before FIFO");
+    memset(&f, 0, sizeof(f));
+    f.fail_at = selected_write;
     r = a7105_tx_packet_run(&bus, &packet, slot, now, delay, &f);
     failures += check(r.error && r.restored && !f.tx_count &&
                       last_write(&f, A7105_REG_PLL_CHANNEL) ==
-                          a7105_probe_rf_channel_for_slot(
-                              A7105_TX_RX_RESTORE_CHANNEL_SLOT),
+                      a7105_probe_rf_channel_for_slot(
+                        A7105_TX_RX_RESTORE_CHANNEL_SLOT),
                       "failed selected-channel write cannot strobe and restores RX");
   }
-  const int invalid[] = {-1,48,255,256,INT_MIN,INT_MAX};
-  for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); ++i) {
+  const int invalid[] = {-1, 48, 255, 256, INT_MIN, INT_MAX};
+  for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
     memset(&f, 0, sizeof(f));
     r = a7105_tx_packet_run(&bus, &packet, invalid[i], now, delay, &f);
     failures += check(r.error == -1 && !f.calls, "invalid full-width carrier never touches SPI");

@@ -2,6 +2,7 @@
 #include "esphome/components/light/light_effect.h"
 #include "esphome/components/light/light_output.h"
 #include "esphome/core/application.h"
+#include "esphome/core/controller_registry.h"
 #include <cstdlib>
 #include <mutex>
 #include <strings.h>
@@ -18,19 +19,17 @@ namespace esphome::light {
 LightState::LightState(LightOutput *output) : output_(output) {}
 LightTraits LightState::get_traits() { return output_->get_traits(); }
 LightCall LightState::make_call() { return LightCall(this); }
-void LightState::start_flash_(const LightColorValues &, uint32_t, bool) { std::abort(); }
-void LightState::start_transition_(const LightColorValues &, uint32_t, bool) { std::abort(); }
 #include "sdk-light-ordering.h"
 #include "sdk-light-restore.h"
 void LightState::dump_config() {}
 void LightState::current_values_as_brightness(float *brightness) { current_values.as_brightness(brightness); }
 void LightState::add_effects(const std::initializer_list<LightEffect *> &effects) { effects_ = effects; }
-std::unique_ptr<LightTransformer> LightOutput::create_default_transition() { return {}; }
 }
 namespace esphome {
 ESPPreferences *global_preferences;
 Application App;
 #include "sdk-hsv.h"
+#include "sdk-callbacks.h"
 bool str_equals_case_insensitive(StringRef a, StringRef b) {
   return a.size() == b.size() && strncasecmp(a.c_str(), b.c_str(), a.size()) == 0;
 }

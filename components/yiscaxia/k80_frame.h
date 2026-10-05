@@ -70,7 +70,7 @@ static inline void k80_finalize_frame(uint8_t bytes[K80_FRAME_SIZE]) {
 }
 
 static inline k80_frame_checks k80_check_frame(
-    const uint8_t *bytes, size_t length) {
+  const uint8_t *bytes, size_t length) {
   k80_frame_checks checks = {0, 0, 0};
   if (bytes == NULL || length != K80_FRAME_SIZE) return checks;
   checks.length_ok = 1;
@@ -83,7 +83,7 @@ static inline k80_frame_checks k80_check_frame(
 // Official receive bodies preserve inactive controls, including when OFF.
 // Decode only active fields; keep original bytes and output on rejection.
 static inline int k80_decode_received(const uint8_t *bytes, size_t length,
-    k80_received_state *output) {
+                                      k80_received_state *output) {
   if (output == NULL) return -1;
   const k80_frame_checks checks = k80_check_frame(bytes, length);
   if (!checks.length_ok || !checks.sum_ok || !checks.crc_ok ||

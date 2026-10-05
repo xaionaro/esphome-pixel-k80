@@ -146,15 +146,14 @@ typedef struct {
   uint8_t code_ii;
 } a7105_scan_profile_t;
 
-static const a7105_scan_profile_t a7105_scan_profiles[A7105_SCAN_PROFILE_COUNT] =
-    {
-        // The A7105 reference values are: RXSM=11, BWS=1 (0x62),
-        // IDL=1/PML=11 (0x07), DCL=001/ETH=01 and PMD selected for the
-        // rate (0x16 for 250/500k, 0x17 for <=125k).
-        {"500k", 0x00U, 0x47U, 0x62U, 0x07U, 0x16U},
-        {"250k", 0x01U, 0x47U, 0x62U, 0x07U, 0x16U},
-        {"125k", 0x03U, 0x27U, 0x62U, 0x07U, 0x17U},
-    };
+static const a7105_scan_profile_t a7105_scan_profiles[A7105_SCAN_PROFILE_COUNT] = {
+  // The A7105 reference values are: RXSM=11, BWS=1 (0x62),
+  // IDL=1/PML=11 (0x07), DCL=001/ETH=01 and PMD selected for the
+  // rate (0x16 for 250/500k, 0x17 for <=125k).
+  {"500k", 0x00U, 0x47U, 0x62U, 0x07U, 0x16U},
+  {"250k", 0x01U, 0x47U, 0x62U, 0x07U, 0x16U},
+  {"125k", 0x03U, 0x27U, 0x62U, 0x07U, 0x17U},
+};
 
 typedef int (*a7105_probe_transfer_fn)(void *context, const uint8_t *tx,
                                        uint8_t *rx, size_t length);
@@ -173,7 +172,7 @@ enum {
 };
 
 static inline int a7105_probe_scan_mode_after_calibration(
-    int transport_ok, uint8_t pending) {
+  int transport_ok, uint8_t pending) {
   if (!transport_ok) {
     return A7105_CALIBRATION_SCAN_STOP;
   }
@@ -193,14 +192,14 @@ static inline size_t a7105_probe_scan_profile_count(void) {
 
 static inline size_t a7105_probe_direct_capture_bits(size_t received_bytes) {
   const size_t bounded = received_bytes < (size_t)A7105_DIRECT_CAPTURE_BYTES
-                             ? received_bytes
-                             : (size_t)A7105_DIRECT_CAPTURE_BYTES;
+                         ? received_bytes
+                         : (size_t)A7105_DIRECT_CAPTURE_BYTES;
   return bounded * 8U;
 }
 
 static inline int a7105_probe_rssi_is_candidate(uint8_t sample,
-                                                uint8_t baseline,
-                                                uint8_t initialized) {
+    uint8_t baseline,
+    uint8_t initialized) {
   if (initialized == 0U || sample >= baseline) {
     return 0;
   }
@@ -208,7 +207,7 @@ static inline int a7105_probe_rssi_is_candidate(uint8_t sample,
 }
 
 static inline uint8_t a7105_probe_rssi_candidate_streak_step(
-    uint8_t streak, uint8_t sample, uint8_t baseline, uint8_t initialized) {
+  uint8_t streak, uint8_t sample, uint8_t baseline, uint8_t initialized) {
   if (a7105_probe_rssi_is_candidate(sample, baseline, initialized) == 0) {
     return 0U;
   }
@@ -219,12 +218,12 @@ static inline uint8_t a7105_probe_rssi_candidate_streak_step(
 }
 
 static inline int a7105_probe_rssi_trigger_allowed(uint64_t now_us,
-                                                   uint64_t blocked_until_us) {
+    uint64_t blocked_until_us) {
   return now_us >= blocked_until_us;
 }
 
 static inline uint8_t a7105_probe_rssi_baseline_step(uint8_t baseline,
-                                                     uint8_t sample) {
+    uint8_t sample) {
   if (sample > baseline) {
     const uint8_t delta = (uint8_t)(sample - baseline);
     const uint8_t step = (uint8_t)((delta + 7U) / 8U);
@@ -239,7 +238,7 @@ static inline uint8_t a7105_probe_rssi_baseline_step(uint8_t baseline,
 }
 
 static inline const a7105_scan_profile_t *a7105_probe_scan_profile(
-    size_t index) {
+  size_t index) {
   return index < A7105_SCAN_PROFILE_COUNT ? &a7105_scan_profiles[index] : NULL;
 }
 
@@ -252,14 +251,14 @@ static inline uint8_t a7105_probe_rf_channel_for_slot(uint8_t slot) {
 }
 
 static inline int a7105_probe_read_status(const a7105_probe_bus_t *bus,
-                                          uint8_t reg, uint8_t *value) {
+    uint8_t reg, uint8_t *value) {
   const uint8_t allowed =
-      (uint8_t)(reg == A7105_REG_MODE ||
-                reg == A7105_REG_MODE_CONTROL ||
-                reg == A7105_REG_CALIBRATION ||
-                reg == A7105_REG_GIO1 || reg == A7105_REG_GIO2 ||
-                reg == A7105_REG_RSSI_ADC || reg == A7105_REG_IF_CALIB ||
-                reg == A7105_REG_VCO_CURRENT || reg == A7105_REG_VCO_BANK);
+    (uint8_t)(reg == A7105_REG_MODE ||
+              reg == A7105_REG_MODE_CONTROL ||
+              reg == A7105_REG_CALIBRATION ||
+              reg == A7105_REG_GIO1 || reg == A7105_REG_GIO2 ||
+              reg == A7105_REG_RSSI_ADC || reg == A7105_REG_IF_CALIB ||
+              reg == A7105_REG_VCO_CURRENT || reg == A7105_REG_VCO_BANK);
   uint8_t tx[2] = {0U, 0U};
   uint8_t rx[2] = {0U, 0U};
 
@@ -277,7 +276,8 @@ static inline int a7105_probe_read_status(const a7105_probe_bus_t *bus,
 static inline int a7105_probe_read_id(const a7105_probe_bus_t *bus,
                                       uint8_t id[4]) {
   const uint8_t tx[5] = {(uint8_t)(A7105_REG_ID_DATA | 0x40U), 0U, 0U, 0U,
-                         0U};
+                         0U
+                        };
   uint8_t rx[5] = {0U, 0U, 0U, 0U, 0U};
 
   if (!a7105_probe_bus_valid(bus) || id == NULL) {
@@ -314,50 +314,50 @@ static inline int a7105_probe_write_id(const a7105_probe_bus_t *bus,
 }
 
 static inline int a7105_probe_write_config(const a7105_probe_bus_t *bus,
-                                           uint8_t reg, uint8_t value) {
+    uint8_t reg, uint8_t value) {
   uint8_t tx[2] = {reg, value};
   uint8_t rx[2] = {0U, 0U};
   const int allowed =
-      (reg == A7105_REG_GIO1 && value == A7105_GIO1_4WIRE_DATA_OUT) ||
-      (reg == A7105_REG_GIO1 && value == A7105_GIO1_DIRECT_RXD) ||
-      (reg == A7105_REG_GIO2 && value == A7105_GIO2_FSYNC_STATUS) ||
-      (reg == A7105_REG_GIO2 && value == A7105_GIO2_DIRECT_CD) ||
-      (reg == A7105_REG_CKO &&
-       (value == A7105_CKO_DISABLED || value == A7105_CKO_RCK ||
-        value == A7105_CKO_FSYCK_DIV8)) ||
-      (reg == A7105_REG_MODE_CONTROL && value == A7105_MODE_CONTROL_DIRECT) ||
-      (reg == A7105_REG_MODE_CONTROL &&
-       value == A7105_MODE_CONTROL_DIRECT_CARRIER) ||
-      (reg == A7105_REG_MODE_CONTROL && value == A7105_MODE_CONTROL_FIFO) ||
-      (reg == A7105_REG_MODE_CONTROL && value == A7105_MODE_CONTROL_RSSI) ||
-      (reg == A7105_REG_CALIBRATION &&
-       (value == A7105_CALIBRATION_IDLE ||
-        value == A7105_CALIBRATION_IF ||
-        value == A7105_CALIBRATION_VCO_BANK)) ||
-      (reg == A7105_REG_ADC_CONTROL && value == A7105_ADC_RSSI_BACKGROUND) ||
-      (reg == A7105_REG_RSSI_ADC && value == A7105_RSSI_THRESHOLD_DIRECT) ||
-      (reg == A7105_REG_FIFO_I &&
-       (value == A7105_FIFO_EASY_FEP || value == A7105_OBSERVED_FIFO_FEP)) ||
-      (reg == A7105_REG_FIFO_II && value == A7105_FIFO_EXTENSION_FEP) ||
-      (reg == A7105_REG_RX && value == 0x62U) ||
-      (reg == A7105_REG_CODE_I && value == 0x07U) ||
-      (reg == A7105_REG_CODE_II && (value == 0x16U || value == 0x17U)) ||
-      (reg == A7105_REG_CLOCK && value == 0xF5U) ||
-      (reg == A7105_REG_DATA_RATE &&
-       (value == 0x00U || value == 0x01U || value == 0x03U)) ||
-      (reg == A7105_REG_PLL_CHANNEL && value <= A7105_PLL_CHANNEL_MAX) ||
-      (reg == A7105_REG_PLL_II && value == 0x9EU) ||
-      (reg == A7105_REG_PLL_III && value == 0x4BU) ||
-      (reg == A7105_REG_PLL_IV && value == 0x00U) ||
-      (reg == A7105_REG_PLL_V && value == 0x02U) ||
-      (reg == A7105_REG_DELAY_II && value == A7105_DELAY_II_RECOMMENDED) ||
-      (reg == A7105_REG_RX_GAIN_I && value == A7105_RX_GAIN_I_RECOMMENDED) ||
-      (reg == A7105_REG_VCO_CURRENT &&
-       value == A7105_VCO_CURRENT_RECOMMENDED) ||
-      (reg == A7105_REG_VCO_THRESH &&
-       value == A7105_VCO_THRESH_RECOMMENDED) ||
-      (reg == A7105_REG_RX_DEM_TEST_I &&
-       (value == 0x47U || value == 0x27U));
+    (reg == A7105_REG_GIO1 && value == A7105_GIO1_4WIRE_DATA_OUT) ||
+    (reg == A7105_REG_GIO1 && value == A7105_GIO1_DIRECT_RXD) ||
+    (reg == A7105_REG_GIO2 && value == A7105_GIO2_FSYNC_STATUS) ||
+    (reg == A7105_REG_GIO2 && value == A7105_GIO2_DIRECT_CD) ||
+    (reg == A7105_REG_CKO &&
+     (value == A7105_CKO_DISABLED || value == A7105_CKO_RCK ||
+      value == A7105_CKO_FSYCK_DIV8)) ||
+    (reg == A7105_REG_MODE_CONTROL && value == A7105_MODE_CONTROL_DIRECT) ||
+    (reg == A7105_REG_MODE_CONTROL &&
+     value == A7105_MODE_CONTROL_DIRECT_CARRIER) ||
+    (reg == A7105_REG_MODE_CONTROL && value == A7105_MODE_CONTROL_FIFO) ||
+    (reg == A7105_REG_MODE_CONTROL && value == A7105_MODE_CONTROL_RSSI) ||
+    (reg == A7105_REG_CALIBRATION &&
+     (value == A7105_CALIBRATION_IDLE ||
+      value == A7105_CALIBRATION_IF ||
+      value == A7105_CALIBRATION_VCO_BANK)) ||
+    (reg == A7105_REG_ADC_CONTROL && value == A7105_ADC_RSSI_BACKGROUND) ||
+    (reg == A7105_REG_RSSI_ADC && value == A7105_RSSI_THRESHOLD_DIRECT) ||
+    (reg == A7105_REG_FIFO_I &&
+     (value == A7105_FIFO_EASY_FEP || value == A7105_OBSERVED_FIFO_FEP)) ||
+    (reg == A7105_REG_FIFO_II && value == A7105_FIFO_EXTENSION_FEP) ||
+    (reg == A7105_REG_RX && value == 0x62U) ||
+    (reg == A7105_REG_CODE_I && value == 0x07U) ||
+    (reg == A7105_REG_CODE_II && (value == 0x16U || value == 0x17U)) ||
+    (reg == A7105_REG_CLOCK && value == 0xF5U) ||
+    (reg == A7105_REG_DATA_RATE &&
+     (value == 0x00U || value == 0x01U || value == 0x03U)) ||
+    (reg == A7105_REG_PLL_CHANNEL && value <= A7105_PLL_CHANNEL_MAX) ||
+    (reg == A7105_REG_PLL_II && value == 0x9EU) ||
+    (reg == A7105_REG_PLL_III && value == 0x4BU) ||
+    (reg == A7105_REG_PLL_IV && value == 0x00U) ||
+    (reg == A7105_REG_PLL_V && value == 0x02U) ||
+    (reg == A7105_REG_DELAY_II && value == A7105_DELAY_II_RECOMMENDED) ||
+    (reg == A7105_REG_RX_GAIN_I && value == A7105_RX_GAIN_I_RECOMMENDED) ||
+    (reg == A7105_REG_VCO_CURRENT &&
+     value == A7105_VCO_CURRENT_RECOMMENDED) ||
+    (reg == A7105_REG_VCO_THRESH &&
+     value == A7105_VCO_THRESH_RECOMMENDED) ||
+    (reg == A7105_REG_RX_DEM_TEST_I &&
+     (value == 0x47U || value == 0x27U));
 
   if (!a7105_probe_bus_valid(bus) || !allowed) {
     return A7105_PROBE_INVALID_ARGUMENT;
@@ -389,8 +389,8 @@ static inline int a7105_probe_configure_4wire(const a7105_probe_bus_t *bus) {
     return result;
   }
   result =
-      a7105_probe_write_config(bus, A7105_REG_GIO1,
-                               A7105_GIO1_4WIRE_DATA_OUT);
+    a7105_probe_write_config(bus, A7105_REG_GIO1,
+                             A7105_GIO1_4WIRE_DATA_OUT);
   if (result != A7105_PROBE_OK) {
     return result;
   }
@@ -401,15 +401,15 @@ static inline int a7105_probe_configure_4wire(const a7105_probe_bus_t *bus) {
 // Field admission is shared; FIFO and direct profiles keep distinct write order.
 static inline int a7105_probe_profile_fields_valid(const a7105_scan_profile_t *profile) {
   return profile != NULL &&
-      (profile->data_rate == 0x00U || profile->data_rate == 0x01U || profile->data_rate == 0x03U) &&
-      (profile->rx_dem == 0x47U || profile->rx_dem == 0x27U) &&
-      profile->rx == 0x62U && profile->code_i == 0x07U &&
-      (profile->code_ii == 0x16U || profile->code_ii == 0x17U);
+         (profile->data_rate == 0x00U || profile->data_rate == 0x01U || profile->data_rate == 0x03U) &&
+         (profile->rx_dem == 0x47U || profile->rx_dem == 0x27U) &&
+         profile->rx == 0x62U && profile->code_i == 0x07U &&
+         (profile->code_ii == 0x16U || profile->code_ii == 0x17U);
 }
 
 static inline int a7105_probe_configure_rx_profile(
-    const a7105_probe_bus_t *bus, uint8_t channel,
-    const a7105_scan_profile_t *profile) {
+  const a7105_probe_bus_t *bus, uint8_t channel,
+  const a7105_scan_profile_t *profile) {
   if (!a7105_probe_bus_valid(bus) || profile == NULL ||
       channel >= A7105_SCAN_CHANNEL_COUNT) {
     return A7105_PROBE_INVALID_ARGUMENT;
@@ -420,29 +420,29 @@ static inline int a7105_probe_configure_rx_profile(
 
   const uint8_t rf_channel = a7105_probe_rf_channel_for_slot(channel);
   const uint8_t registers[][2] = {
-      {A7105_REG_GIO1, A7105_GIO1_4WIRE_DATA_OUT},
-      {A7105_REG_GIO2, A7105_GIO2_FSYNC_STATUS},
-      {A7105_REG_MODE_CONTROL, A7105_MODE_CONTROL_FIFO},
-      {A7105_REG_FIFO_I, A7105_FIFO_EASY_FEP},
-      {A7105_REG_FIFO_II, A7105_FIFO_EXTENSION_FEP},
-      {A7105_REG_RX, profile->rx},
-      {A7105_REG_CODE_I, profile->code_i},
-      {A7105_REG_CODE_II, profile->code_ii},
-      {A7105_REG_CLOCK, 0xF5U},
-      {A7105_REG_DATA_RATE, profile->data_rate},
-      {A7105_REG_PLL_CHANNEL, rf_channel},
-      {A7105_REG_PLL_II, 0x9EU},
-      {A7105_REG_PLL_III, 0x4BU},
-      {A7105_REG_PLL_IV, 0x00U},
-      {A7105_REG_PLL_V, 0x02U},
-      {A7105_REG_DELAY_II, A7105_DELAY_II_RECOMMENDED},
-      {A7105_REG_RX_GAIN_I, A7105_RX_GAIN_I_RECOMMENDED},
-      {A7105_REG_RX_DEM_TEST_I, profile->rx_dem},
+    {A7105_REG_GIO1, A7105_GIO1_4WIRE_DATA_OUT},
+    {A7105_REG_GIO2, A7105_GIO2_FSYNC_STATUS},
+    {A7105_REG_MODE_CONTROL, A7105_MODE_CONTROL_FIFO},
+    {A7105_REG_FIFO_I, A7105_FIFO_EASY_FEP},
+    {A7105_REG_FIFO_II, A7105_FIFO_EXTENSION_FEP},
+    {A7105_REG_RX, profile->rx},
+    {A7105_REG_CODE_I, profile->code_i},
+    {A7105_REG_CODE_II, profile->code_ii},
+    {A7105_REG_CLOCK, 0xF5U},
+    {A7105_REG_DATA_RATE, profile->data_rate},
+    {A7105_REG_PLL_CHANNEL, rf_channel},
+    {A7105_REG_PLL_II, 0x9EU},
+    {A7105_REG_PLL_III, 0x4BU},
+    {A7105_REG_PLL_IV, 0x00U},
+    {A7105_REG_PLL_V, 0x02U},
+    {A7105_REG_DELAY_II, A7105_DELAY_II_RECOMMENDED},
+    {A7105_REG_RX_GAIN_I, A7105_RX_GAIN_I_RECOMMENDED},
+    {A7105_REG_RX_DEM_TEST_I, profile->rx_dem},
   };
   for (size_t index = 0U; index < sizeof(registers) / sizeof(registers[0]);
        ++index) {
     const int result =
-        a7105_probe_write_config(bus, registers[index][0], registers[index][1]);
+      a7105_probe_write_config(bus, registers[index][0], registers[index][1]);
     if (result != A7105_PROBE_OK) {
       return result;
     }
@@ -455,16 +455,16 @@ static inline int a7105_probe_initialize_rx(const a7105_probe_bus_t *bus) {
   // selected channel is only a calibration starting point; scan retuning
   // writes the channel again for every slot.
   return a7105_probe_configure_rx_profile(
-      bus, 0U, &a7105_scan_profiles[0]);
+           bus, 0U, &a7105_scan_profiles[0]);
 }
 
 // Identified K80 FIFO tuning; general scan profiles retain their original
 // 64-byte FIFO and calibration baseline.
 static inline int a7105_probe_configure_observed_fifo_at(
-    const a7105_probe_bus_t *bus, uint8_t channel) {
+  const a7105_probe_bus_t *bus, uint8_t channel) {
   const int result = a7105_probe_configure_rx_profile(
-      bus, channel,
-      &a7105_scan_profiles[A7105_OBSERVED_PROFILE]);
+                       bus, channel,
+                       &a7105_scan_profiles[A7105_OBSERVED_PROFILE]);
   if (result != A7105_PROBE_OK) {
     return result;
   }
@@ -473,9 +473,9 @@ static inline int a7105_probe_configure_observed_fifo_at(
 }
 
 static inline int a7105_probe_configure_observed_fifo(
-    const a7105_probe_bus_t *bus) {
+  const a7105_probe_bus_t *bus) {
   return a7105_probe_configure_observed_fifo_at(
-      bus, A7105_RX_EXPERIMENT_CHANNEL_SLOT);
+           bus, A7105_RX_EXPERIMENT_CHANNEL_SLOT);
 }
 
 // Receive-only identified-FIFO scheduling; no controller or TX dependency.
@@ -498,7 +498,7 @@ static inline int a7105_k80_scan_next(int current, int scan_all, int fixed) {
 
 static inline int a7105_k80_scan_bounds_valid(int first, int last, int repeat) {
   return first >= 0 && first <= last && last < A7105_SCAN_CHANNEL_COUNT &&
-      repeat >= 1 && repeat <= 16;
+         repeat >= 1 && repeat <= 16;
 }
 
 static inline int a7105_k80_scan_resident_slot(int current, int scan_all,
@@ -521,7 +521,7 @@ static inline int a7105_k80_scan_terminal_next(int current, int scan_all,
 }
 
 static inline int a7105_k80_fifo_action(int64_t now, int64_t started,
-    int matched, int completed, int64_t match_started) {
+                                        int matched, int completed, int64_t match_started) {
   // Service a complete latched packet before retuning, including delayed service.
   if (matched && completed && now >= started + A7105_K80_FIFO_SETTLE_US)
     return A7105_K80_FIFO_CAPTURE;
@@ -534,8 +534,8 @@ static inline int a7105_k80_fifo_action(int64_t now, int64_t started,
 }
 
 static inline int a7105_probe_configure_direct_profile(
-    const a7105_probe_bus_t *bus, uint8_t channel,
-    const a7105_scan_profile_t *profile) {
+  const a7105_probe_bus_t *bus, uint8_t channel,
+  const a7105_scan_profile_t *profile) {
   if (!a7105_probe_bus_valid(bus) || profile == NULL ||
       channel >= A7105_SCAN_CHANNEL_COUNT) {
     return A7105_PROBE_INVALID_ARGUMENT;
@@ -550,30 +550,30 @@ static inline int a7105_probe_configure_direct_profile(
   // bus observability. The caller must restore the 4-wire profile before any
   // subsequent SPI read.
   const uint8_t registers[][2] = {
-      {A7105_REG_RX, profile->rx},
-      {A7105_REG_CODE_I, profile->code_i},
-      {A7105_REG_CODE_II, profile->code_ii},
-      {A7105_REG_CLOCK, 0xF5U},
-      {A7105_REG_DATA_RATE, profile->data_rate},
-      {A7105_REG_PLL_CHANNEL, rf_channel},
-      {A7105_REG_PLL_II, 0x9EU},
-      {A7105_REG_PLL_III, 0x4BU},
-      {A7105_REG_PLL_IV, 0x00U},
-      {A7105_REG_PLL_V, 0x02U},
-      {A7105_REG_DELAY_II, A7105_DELAY_II_RECOMMENDED},
-      {A7105_REG_RX_GAIN_I, A7105_RX_GAIN_I_RECOMMENDED},
-      {A7105_REG_RX_DEM_TEST_I, profile->rx_dem},
-      {A7105_REG_CKO, A7105_CKO_RCK},
-      {A7105_REG_RSSI_ADC, A7105_RSSI_THRESHOLD_DIRECT},
-      {A7105_REG_ADC_CONTROL, A7105_ADC_RSSI_BACKGROUND},
-      {A7105_REG_GIO2, A7105_GIO2_DIRECT_CD},
-      {A7105_REG_MODE_CONTROL, A7105_MODE_CONTROL_DIRECT_CARRIER},
-      {A7105_REG_GIO1, A7105_GIO1_DIRECT_RXD},
+    {A7105_REG_RX, profile->rx},
+    {A7105_REG_CODE_I, profile->code_i},
+    {A7105_REG_CODE_II, profile->code_ii},
+    {A7105_REG_CLOCK, 0xF5U},
+    {A7105_REG_DATA_RATE, profile->data_rate},
+    {A7105_REG_PLL_CHANNEL, rf_channel},
+    {A7105_REG_PLL_II, 0x9EU},
+    {A7105_REG_PLL_III, 0x4BU},
+    {A7105_REG_PLL_IV, 0x00U},
+    {A7105_REG_PLL_V, 0x02U},
+    {A7105_REG_DELAY_II, A7105_DELAY_II_RECOMMENDED},
+    {A7105_REG_RX_GAIN_I, A7105_RX_GAIN_I_RECOMMENDED},
+    {A7105_REG_RX_DEM_TEST_I, profile->rx_dem},
+    {A7105_REG_CKO, A7105_CKO_RCK},
+    {A7105_REG_RSSI_ADC, A7105_RSSI_THRESHOLD_DIRECT},
+    {A7105_REG_ADC_CONTROL, A7105_ADC_RSSI_BACKGROUND},
+    {A7105_REG_GIO2, A7105_GIO2_DIRECT_CD},
+    {A7105_REG_MODE_CONTROL, A7105_MODE_CONTROL_DIRECT_CARRIER},
+    {A7105_REG_GIO1, A7105_GIO1_DIRECT_RXD},
   };
   for (size_t index = 0U; index < sizeof(registers) / sizeof(registers[0]);
        ++index) {
     const int result =
-        a7105_probe_write_config(bus, registers[index][0], registers[index][1]);
+      a7105_probe_write_config(bus, registers[index][0], registers[index][1]);
     if (result != A7105_PROBE_OK) {
       return result;
     }
@@ -582,7 +582,7 @@ static inline int a7105_probe_configure_direct_profile(
 }
 
 static inline int a7105_probe_send_strobe(const a7105_probe_bus_t *bus,
-                                          uint8_t command) {
+    uint8_t command) {
   if (command != A7105_CMD_STANDBY && command != A7105_CMD_PLL &&
       command != A7105_CMD_RX && command != A7105_CMD_RX_FIFO_RESET) {
     return A7105_PROBE_INVALID_ARGUMENT;
@@ -592,7 +592,7 @@ static inline int a7105_probe_send_strobe(const a7105_probe_bus_t *bus,
   if (!a7105_probe_bus_valid(bus) ||
       bus->transfer(bus->context, tx, rx, sizeof(tx)) != 0) {
     return a7105_probe_bus_valid(bus) ? A7105_PROBE_TRANSPORT_ERROR
-                                      : A7105_PROBE_INVALID_ARGUMENT;
+           : A7105_PROBE_INVALID_ARGUMENT;
   }
   return A7105_PROBE_OK;
 }
@@ -606,7 +606,7 @@ static inline int a7105_probe_reset_rx_fifo(const a7105_probe_bus_t *bus) {
 }
 
 static inline int a7105_probe_read_rx_fifo(const a7105_probe_bus_t *bus,
-                                           uint8_t *payload, size_t length) {
+    uint8_t *payload, size_t length) {
   uint8_t tx[A7105_SCAN_FIFO_BYTES + 1U] = {0U};
   uint8_t rx[A7105_SCAN_FIFO_BYTES + 1U] = {0U};
   if (!a7105_probe_bus_valid(bus) || payload == NULL || length == 0U ||
@@ -624,34 +624,34 @@ static inline int a7105_probe_read_rx_fifo(const a7105_probe_bus_t *bus,
 }
 
 static inline int a7105_probe_configure_rssi(const a7105_probe_bus_t *bus,
-                                             uint8_t channel) {
+    uint8_t channel) {
   if (!a7105_probe_bus_valid(bus) ||
       channel >= A7105_SCAN_CHANNEL_COUNT) {
     return A7105_PROBE_INVALID_ARGUMENT;
   }
   const uint8_t rf_channel = a7105_probe_rf_channel_for_slot(channel);
   const uint8_t registers[][2] = {
-      {A7105_REG_GIO1, A7105_GIO1_4WIRE_DATA_OUT},
-      {A7105_REG_GIO2, A7105_GIO2_FSYNC_STATUS},
-      {A7105_REG_MODE_CONTROL, A7105_MODE_CONTROL_RSSI},
-      {A7105_REG_ADC_CONTROL, A7105_ADC_RSSI_BACKGROUND},
-      {A7105_REG_RX, a7105_scan_profiles[0].rx},
-      {A7105_REG_CODE_I, a7105_scan_profiles[0].code_i},
-      {A7105_REG_CODE_II, a7105_scan_profiles[0].code_ii},
-      {A7105_REG_RX_DEM_TEST_I, a7105_scan_profiles[0].rx_dem},
-      {A7105_REG_CLOCK, 0xF5U},
-      {A7105_REG_PLL_CHANNEL, rf_channel},
-      {A7105_REG_PLL_II, 0x9EU},
-      {A7105_REG_PLL_III, 0x4BU},
-      {A7105_REG_PLL_IV, 0x00U},
-      {A7105_REG_PLL_V, 0x02U},
-      {A7105_REG_DELAY_II, A7105_DELAY_II_RECOMMENDED},
-      {A7105_REG_RX_GAIN_I, A7105_RX_GAIN_I_RECOMMENDED},
+    {A7105_REG_GIO1, A7105_GIO1_4WIRE_DATA_OUT},
+    {A7105_REG_GIO2, A7105_GIO2_FSYNC_STATUS},
+    {A7105_REG_MODE_CONTROL, A7105_MODE_CONTROL_RSSI},
+    {A7105_REG_ADC_CONTROL, A7105_ADC_RSSI_BACKGROUND},
+    {A7105_REG_RX, a7105_scan_profiles[0].rx},
+    {A7105_REG_CODE_I, a7105_scan_profiles[0].code_i},
+    {A7105_REG_CODE_II, a7105_scan_profiles[0].code_ii},
+    {A7105_REG_RX_DEM_TEST_I, a7105_scan_profiles[0].rx_dem},
+    {A7105_REG_CLOCK, 0xF5U},
+    {A7105_REG_PLL_CHANNEL, rf_channel},
+    {A7105_REG_PLL_II, 0x9EU},
+    {A7105_REG_PLL_III, 0x4BU},
+    {A7105_REG_PLL_IV, 0x00U},
+    {A7105_REG_PLL_V, 0x02U},
+    {A7105_REG_DELAY_II, A7105_DELAY_II_RECOMMENDED},
+    {A7105_REG_RX_GAIN_I, A7105_RX_GAIN_I_RECOMMENDED},
   };
   for (size_t index = 0U; index < sizeof(registers) / sizeof(registers[0]);
        ++index) {
     const int result =
-        a7105_probe_write_config(bus, registers[index][0], registers[index][1]);
+      a7105_probe_write_config(bus, registers[index][0], registers[index][1]);
     if (result != A7105_PROBE_OK) {
       return result;
     }

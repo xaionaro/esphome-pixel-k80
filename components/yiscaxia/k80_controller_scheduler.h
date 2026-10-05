@@ -13,21 +13,21 @@ enum {
 };
 
 typedef enum {
-  K80_CONTROLLER_SEMANTIC_FIELD_NONE = 0,
-  K80_CONTROLLER_SEMANTIC_FIELD_BRIGHTNESS = 1U << 0,
-  K80_CONTROLLER_SEMANTIC_FIELD_RGB = 1U << 1,
-  K80_CONTROLLER_SEMANTIC_FIELD_COLOR_TEMPERATURE = 1U << 2,
-  K80_CONTROLLER_SEMANTIC_FIELD_EFFECT = 1U << 3,
-  K80_CONTROLLER_SEMANTIC_FIELD_MODE = 1U << 4,
-} k80_controller_semantic_field;
+  K80_CONTROLLER_FIELD_NONE = 0,
+  K80_CONTROLLER_FIELD_BRIGHTNESS = 1U << 0,
+  K80_CONTROLLER_FIELD_RGB = 1U << 1,
+  K80_CONTROLLER_FIELD_COLOR_TEMPERATURE = 1U << 2,
+  K80_CONTROLLER_FIELD_EFFECT = 1U << 3,
+  K80_CONTROLLER_FIELD_MODE = 1U << 4,
+} k80_controller_field;
 
 typedef struct {
-  int rf_slot;
-  int rf_group;
-  int semantic_profile;
+  int slot;
+  int group;
+  int profile;
 } k80_controller_endpoint;
 typedef struct {
-  uint8_t slot, group, semantic_profile, remaining, enabled;
+  uint8_t slot, group, profile, remaining, enabled;
   k80_control_values state;
 } k80_controller_pending;
 typedef struct {
@@ -40,39 +40,54 @@ typedef struct {
   uint64_t started_slots, slot_started_us[K80_CONTROLLER_RF_SLOT_COUNT];
 } k80_controller_queue;
 
-static inline int k80_controller_setting_valid(int spacing, float value) {
+typedef enum {
+  K80_CONTROLLER_SETTING_ATTEMPTS,
+  K80_CONTROLLER_SETTING_CHANNEL_SPACING,
+} k80_controller_setting;
+
+static inline uint16_t k80_controller_setting_max(k80_controller_setting setting) {
+  switch (setting) {
+    case K80_CONTROLLER_SETTING_ATTEMPTS:
+      return K80_CONTROLLER_ATTEMPTS_MAX;
+    case K80_CONTROLLER_SETTING_CHANNEL_SPACING:
+      return UINT16_MAX;
+    default:
+      return 0;
+  }
+}
+static inline int k80_controller_setting_valid(k80_controller_setting setting, float value) {
   return isfinite(value) && value == floorf(value) && value >= 1 &&
-      value <= (spacing ? UINT16_MAX : K80_CONTROLLER_ATTEMPTS_MAX);
+         value <= k80_controller_setting_max(setting);
 }
 static inline int k80_controller_set_attempts(k80_controller_queue *q, float value) {
-  if (!q || !k80_controller_setting_valid(0, value)) return 0;
+  if (!q || !k80_controller_setting_valid(K80_CONTROLLER_SETTING_ATTEMPTS, value)) return 0;
   q->attempts = (uint8_t)value;
   return 1;
 }
 static inline int k80_controller_set_spacing(k80_controller_queue *q, float value) {
-  if (!q || !k80_controller_setting_valid(1, value)) return 0;
+  if (!q || !k80_controller_setting_valid(K80_CONTROLLER_SETTING_CHANNEL_SPACING, value)) return 0;
   q->spacing_ms = (uint16_t)value;
   return 1;
 }
 
-static inline uint32_t k80_controller_profile_fields(int semantic_profile) {
-  if (k80_controller_profile_is_native(semantic_profile))
-    return K80_CONTROLLER_SEMANTIC_FIELD_BRIGHTNESS |
-        K80_CONTROLLER_SEMANTIC_FIELD_RGB |
-        K80_CONTROLLER_SEMANTIC_FIELD_COLOR_TEMPERATURE |
-        K80_CONTROLLER_SEMANTIC_FIELD_EFFECT | K80_CONTROLLER_SEMANTIC_FIELD_MODE;
-  switch (semantic_profile) {
-    case K80_CONTROLLER_SEMANTIC_PROFILE_BRIGHTNESS:
-    case K80_CONTROLLER_SEMANTIC_PROFILE_CCT_2700:
-      return K80_CONTROLLER_SEMANTIC_FIELD_BRIGHTNESS;
+static inline uint32_t k80_controller_profile_fields(int profile) {
+  if (k80_controller_profile_is_native(profile))
+    return K80_CONTROLLER_FIELD_BRIGHTNESS |
+           K80_CONTROLLER_FIELD_RGB |
+           K80_CONTROLLER_FIELD_COLOR_TEMPERATURE |
+           K80_CONTROLLER_FIELD_EFFECT | K80_CONTROLLER_FIELD_MODE;
+  switch (profile) {
+    case K80_CONTROLLER_PROFILE_BRIGHTNESS:
+    case K80_CONTROLLER_PROFILE_CCT_2700:
+      return K80_CONTROLLER_FIELD_BRIGHTNESS;
     default:
-      return K80_CONTROLLER_SEMANTIC_FIELD_NONE;
+      return K80_CONTROLLER_FIELD_NONE;
   }
 }
 
-static inline int k80_controller_profile_supports_field(int semantic_profile, uint32_t field) {
+static inline int k80_controller_profile_supports_field(int profile, uint32_t field) {
   if (field == 0 || (field & (field - 1U)) != 0) return 0;
-  return (k80_controller_profile_fields(semantic_profile) & field) != 0;
+  return (k80_controller_profile_fields(profile) & field) != 0;
 }
 
 // Install a private copy once. Validate full-width values before narrowing,
@@ -83,18 +98,18 @@ static inline int k80_controller_configure(k80_controller_queue *q,
       count > K80_CONTROLLER_ENDPOINT_LIMIT)
     return 0;
   for (size_t i = 0; i < count; ++i) {
-    if (!k80_controller_profile_address_valid(endpoints[i].semantic_profile,
-            endpoints[i].rf_slot, endpoints[i].rf_group) ||
-        k80_controller_profile_fields(endpoints[i].semantic_profile) == 0)
+    if (!k80_controller_profile_address_valid(endpoints[i].profile,
+        endpoints[i].slot, endpoints[i].group) ||
+        k80_controller_profile_fields(endpoints[i].profile) == 0)
       return 0;
     for (size_t j = 0; j < i; ++j)
-      if (endpoints[i].rf_slot == endpoints[j].rf_slot && endpoints[i].rf_group == endpoints[j].rf_group)
+      if (endpoints[i].slot == endpoints[j].slot && endpoints[i].group == endpoints[j].group)
         return 0;
   }
   for (size_t i = 0; i < count; ++i) {
-    storage[i].slot = (uint8_t)endpoints[i].rf_slot;
-    storage[i].group = (uint8_t)endpoints[i].rf_group;
-    storage[i].semantic_profile = (uint8_t)endpoints[i].semantic_profile;
+    storage[i].slot = (uint8_t)endpoints[i].slot;
+    storage[i].group = (uint8_t)endpoints[i].group;
+    storage[i].profile = (uint8_t)endpoints[i].profile;
     storage[i].remaining = 0;
     storage[i].enabled = 1;
     storage[i].state = k80_default_controls();
@@ -118,7 +133,7 @@ static inline void k80_controller_end_drain(k80_controller_queue *q) {
 static inline int k80_controller_states_equal(const k80_control_values *a,
     const k80_control_values *b) {
   return a->mode == b->mode && a->level == b->level && a->ct_index == b->ct_index &&
-      a->hue == b->hue && a->saturation == b->saturation && a->effect == b->effect;
+         a->hue == b->hue && a->saturation == b->saturation && a->effect == b->effect;
 }
 // Zero selects the configured total; an explicit total belongs only to this command.
 static inline int k80_controller_request_state_attempts(k80_controller_queue *q, int endpoint,
@@ -128,8 +143,8 @@ static inline int k80_controller_request_state_attempts(k80_controller_queue *q,
       (size_t)endpoint >= q->count) return 0;
   k80_controller_pending *pending = &q->pending[endpoint];
   if (!pending->enabled) return 0;
-  if (!k80_controller_profile_address_valid(pending->semantic_profile, pending->slot, pending->group) ||
-      !k80_controller_state_valid(pending->semantic_profile, pending->slot, pending->group, state))
+  if (!k80_controller_profile_address_valid(pending->profile, pending->slot, pending->group) ||
+      !k80_controller_state_valid(pending->profile, pending->slot, pending->group, state))
     return 0;
   if (pending->remaining && k80_controller_states_equal(&pending->state, state)) return 1;
   pending->state = *state;
@@ -140,19 +155,18 @@ static inline int k80_controller_request_state(k80_controller_queue *q, int endp
     const k80_control_values *state) {
   return k80_controller_request_state_attempts(q, endpoint, state, 0);
 }
-static inline int k80_controller_request_field(k80_controller_queue *q, int endpoint,
-                                                  uint32_t field, float value) {
+static inline int k80_controller_request_brightness(k80_controller_queue *q, int endpoint, float value) {
   if (!q || (!q->armed && !q->draining) || endpoint < 0 || (size_t)endpoint >= q->count ||
       !q->pending ||
       !q->pending[endpoint].enabled ||
-      !k80_controller_profile_supports_field(q->pending[endpoint].semantic_profile, field) ||
-      field != K80_CONTROLLER_SEMANTIC_FIELD_BRIGHTNESS || !isfinite(value))
+      !k80_controller_profile_supports_field(q->pending[endpoint].profile, K80_CONTROLLER_FIELD_BRIGHTNESS) ||
+      !isfinite(value))
     return 0;
   if (value < 0) value = 0;
   if (value > 1) value = 1;
   const int level = k80_quantize_brightness(value);
   k80_controller_pending *pending = &q->pending[endpoint];
-  if (k80_controller_profile_is_native(pending->semantic_profile)) {
+  if (k80_controller_profile_is_native(pending->profile)) {
     k80_control_values state = pending->state;
     state.level = level;
     return k80_controller_request_state(q, endpoint, &state);
@@ -161,9 +175,6 @@ static inline int k80_controller_request_field(k80_controller_queue *q, int endp
   pending->state.level = level;
   pending->remaining = q->attempts;
   return 1;
-}
-static inline int k80_controller_request(k80_controller_queue *q, int endpoint, float value) {
-  return k80_controller_request_field(q, endpoint, K80_CONTROLLER_SEMANTIC_FIELD_BRIGHTNESS, value);
 }
 static inline int k80_controller_take_state(k80_controller_queue *q, uint64_t now,
     int *endpoint, k80_control_values *state) {
@@ -187,7 +198,7 @@ static inline int k80_controller_take_state(k80_controller_queue *q, uint64_t no
   return 0;
 }
 static inline int k80_controller_take(k80_controller_queue *q, uint64_t now,
-    int *endpoint, int *level) {
+                                      int *endpoint, int *level) {
   if (!level) return 0;
   k80_control_values state;
   if (!k80_controller_take_state(q, now, endpoint, &state)) return 0;

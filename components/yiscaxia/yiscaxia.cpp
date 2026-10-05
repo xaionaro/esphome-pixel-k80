@@ -15,13 +15,16 @@ void YiscaxiaController::setup() {
   this->queue_.attempts = K80_CONTROLLER_DEFAULT_ATTEMPTS;
   this->queue_.spacing_ms = K80_CONTROLLER_DEFAULT_SPACING_MS;
   for (auto &position : this->pending_) {
-    position.semantic_profile = K80_CONTROLLER_SEMANTIC_PROFILE_NATIVE_RAW_FREQUENCY;
+    position.profile = K80_CONTROLLER_PROFILE_NATIVE_RAW_FREQUENCY;
     position.state = k80_default_controls();
   }
-  if (!this->replace_pairs(this->initial_pairs_)) {
-    ESP_LOGE(TAG, "Invalid initial pair table");
+  const auto result = this->replace_pairs(this->initial_pairs_);
+  if (!result) {
+    ESP_LOGE(TAG, "Invalid initial pair table: %s", result.error.c_str());
     this->mark_failed();
+    return;
   }
+  k80_controller_begin_drain(&this->queue_);
 }
 
 bool YiscaxiaController::endpoint_enabled(int endpoint) const {
@@ -32,46 +35,83 @@ bool YiscaxiaController::endpoint_pending(int endpoint) const {
   return this->endpoint_enabled(endpoint) && this->pending_[endpoint].remaining != 0;
 }
 
-bool YiscaxiaController::light_idle_(size_t endpoint) const {
-  const auto *state = this->lights_[endpoint];
-  if (!state) return !this->queue_.armed;
-  return state->is_idle() && state->current_values.get_state() == 0 &&
-      state->remote_values.get_state() == 0 && !state->is_transformer_active() &&
-      state->get_current_effect_index() == 0;
+k80_controller_config::Result YiscaxiaController::replace_pairs(const std::string &pairs) {
+  k80_controller_config::Positions proposed;
+  const auto result = this->prepare_pairs(pairs, &proposed);
+  if (!result) return result;
+  return this->apply_pairs(proposed);
 }
 
-bool YiscaxiaController::replace_pairs(const std::string &pairs) {
-  return k80_controller_config::replace_positions(
-      &this->queue_, pairs, [this](size_t endpoint) { return this->light_idle_(endpoint); });
+k80_controller_config::Result YiscaxiaController::apply_pairs(const k80_controller_config::Positions &pairs) {
+  return k80_controller_config::apply_positions(
+  &this->queue_, pairs, [this](size_t endpoint) {
+    auto *state = this->lights_[endpoint];
+    if (!state) return;
+    const auto previous_remapping = this->remapping_endpoint_;
+    this->remapping_endpoint_ = static_cast<int>(endpoint);
+    state->cancel_pending_output_for_remap();
+    this->remapping_endpoint_ = previous_remapping;
+  });
 }
 
-bool YiscaxiaController::request_state(int endpoint, const k80_control_values &state, bool once) {
-  return k80_controller_request_state_attempts(&this->queue_, endpoint, &state, once ? 1 : 0);
+bool YiscaxiaController::request_state(int endpoint, const k80_control_values &state, bool single_attempt) {
+  return k80_controller_request_state_attempts(&this->queue_, endpoint, &state, single_attempt ? 1 : 0);
 }
 
-bool YiscaxiaController::set_transmission_setting(bool spacing, float value) {
-  return spacing ? k80_controller_set_spacing(&this->queue_, value)
-                 : k80_controller_set_attempts(&this->queue_, value);
+bool YiscaxiaController::set_transmission_setting(k80_controller_setting setting, float value) {
+  switch (setting) {
+    case K80_CONTROLLER_SETTING_ATTEMPTS:
+      return k80_controller_set_attempts(&this->queue_, value);
+    case K80_CONTROLLER_SETTING_CHANNEL_SPACING:
+      return k80_controller_set_spacing(&this->queue_, value);
+    default:
+      return false;
+  }
+}
+
+uint32_t YiscaxiaController::configuration_setting(YiscaxiaSetting setting) const {
+  switch (setting) {
+    case YiscaxiaSetting::TRANSMISSION_ATTEMPTS:
+      return this->transmission_setting(K80_CONTROLLER_SETTING_ATTEMPTS);
+    case YiscaxiaSetting::CHANNEL_SPACING:
+      return this->transmission_setting(K80_CONTROLLER_SETTING_CHANNEL_SPACING);
+    case YiscaxiaSetting::RAINBOW_STEP_DEGREES:
+      return this->rainbow_step_degrees_;
+    case YiscaxiaSetting::RAINBOW_STEP_SPACING:
+      return this->rainbow_step_spacing_ms_;
+    default:
+      return 0;
+  }
+}
+
+bool YiscaxiaController::set_configuration_setting(YiscaxiaSetting setting, float value) {
+  if (!configuration_setting_valid(setting, value)) return false;
+  switch (setting) {
+    case YiscaxiaSetting::TRANSMISSION_ATTEMPTS:
+      return this->set_transmission_setting(K80_CONTROLLER_SETTING_ATTEMPTS, value);
+    case YiscaxiaSetting::CHANNEL_SPACING:
+      return this->set_transmission_setting(K80_CONTROLLER_SETTING_CHANNEL_SPACING, value);
+    case YiscaxiaSetting::RAINBOW_STEP_DEGREES:
+      this->rainbow_step_degrees_ = static_cast<uint16_t>(value);
+      return true;
+    case YiscaxiaSetting::RAINBOW_STEP_SPACING:
+      this->rainbow_step_spacing_ms_ = static_cast<uint32_t>(value);
+      return true;
+    default:
+      return false;
+  }
 }
 
 void YiscaxiaController::loop() {
   if (this->is_failed()) return;
   if (!this->initialized_) {
-    // Flush startup restore while muted, then replay restored ON states once armed.
+    // Retain actual startup commands and their attempt budgets while RF is muted.
     if (!this->transport_->ready()) return;
-    k80_controller_begin_drain(&this->queue_);
     for (auto *state : this->lights_)
       if (state) state->loop();
-    k80_controller_end_drain(&this->queue_);
+    this->queue_.draining = 0;
     this->queue_.armed = 1;
     this->initialized_ = true;
-    for (size_t i = 0; i < this->lights_.size(); ++i) {
-      auto *state = this->lights_[i];
-      if (state && this->endpoint_enabled(i) && state->remote_values.is_on() && state->current_values.is_on()) {
-        state->get_output()->update_state(state);
-        state->get_output()->write_state(state);
-      }
-    }
   }
 
   if (!this->transport_->ready()) {
@@ -85,7 +125,7 @@ void YiscaxiaController::loop() {
   if (!k80_controller_take_state(&this->queue_, this->transport_->now_us(), &endpoint, &state)) return;
   const auto &position = this->pending_[endpoint];
   yiscaxia_tx_packet packet{};
-  if (k80_controller_build_state_packet(position.semantic_profile, position.slot, position.group, &state,
+  if (k80_controller_build_state_packet(position.profile, position.slot, position.group, &state,
                                         packet.bytes) != 0) {
     k80_controller_abort(&this->queue_, endpoint);
     return;

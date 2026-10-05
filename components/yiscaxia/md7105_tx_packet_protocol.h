@@ -2,6 +2,14 @@
 #include "md7105_probe_protocol.h"
 #include "yiscaxia_transport_types.h"
 #include <string.h>
+// The observed radio FIFO configuration must fit the K80 body sent below.
+#ifdef __cplusplus
+static_assert(static_cast<int>(A7105_OBSERVED_FIFO_BYTES) == K80_FRAME_SIZE,
+              "Observed radio FIFO length must match the K80 frame");
+#else
+_Static_assert((int) A7105_OBSERVED_FIFO_BYTES == K80_FRAME_SIZE,
+               "Observed radio FIFO length must match the K80 frame");
+#endif
 enum {
   A7105_TX_DIAGNOSTIC_CHANNEL_SLOT = 1U,
   A7105_TX_RX_RESTORE_CHANNEL_SLOT = 2U,
@@ -12,8 +20,8 @@ static const uint8_t a7105_k80_radio_id[4] = {0xA5, 0x5A, 0xB9, 0x46};
 typedef uint64_t (*a7105_tx_now_fn)(void *);
 typedef void (*a7105_tx_delay_fn)(void *, unsigned);
 static inline yiscaxia_tx_result a7105_tx_packet_run(
-    const a7105_probe_bus_t *bus, const yiscaxia_tx_packet *packet, int slot,
-    a7105_tx_now_fn now, a7105_tx_delay_fn delay, void *clock) {
+  const a7105_probe_bus_t *bus, const yiscaxia_tx_packet *packet, int slot,
+  a7105_tx_now_fn now, a7105_tx_delay_fn delay, void *clock) {
   yiscaxia_tx_result result = {0};
   result.error = YISCAXIA_TX_FAILED;
   if (packet == NULL || slot < 0 || slot >= A7105_SCAN_CHANNEL_COUNT) return result;
@@ -29,16 +37,16 @@ static inline yiscaxia_tx_result a7105_tx_packet_run(
   if (a7105_probe_send_strobe(bus, A7105_CMD_STANDBY) != A7105_PROBE_OK ||
       a7105_probe_configure_4wire(bus) != A7105_PROBE_OK ||
       a7105_probe_configure_observed_fifo_at(
-          bus, A7105_TX_RX_RESTORE_CHANNEL_SLOT) != A7105_PROBE_OK ||
+        bus, A7105_TX_RX_RESTORE_CHANNEL_SLOT) != A7105_PROBE_OK ||
       a7105_probe_write_id(bus, a7105_k80_radio_id) != A7105_PROBE_OK) goto cleanup;
-  for (size_t i = 0; i < sizeof(settings)/sizeof(settings[0]); ++i) {
+  for (size_t i = 0; i < sizeof(settings) / sizeof(settings[0]); ++i) {
     if (bus->transfer(bus->context, settings[i], rx, 2) != 0) goto cleanup;
   }
   // Configure the explicit RX return channel, then retune to this endpoint's
   // requested slot immediately before FIFO/TX. The PLL state machine handles
   // settling; endpoint selection remains independent across all 48 slots.
   if (a7105_probe_write_config(bus, A7105_REG_PLL_CHANNEL,
-      a7105_probe_rf_channel_for_slot((uint8_t)slot)) != A7105_PROBE_OK) goto cleanup;
+                               a7105_probe_rf_channel_for_slot((uint8_t)slot)) != A7105_PROBE_OK) goto cleanup;
   if (bus->transfer(bus->context, &reset, rx, 1) != 0 ||
       bus->transfer(bus->context, fifo, rx, sizeof(fifo)) != 0) goto cleanup;
   started = now(clock);
@@ -74,7 +82,7 @@ cleanup:
   }
   if (a7105_probe_configure_4wire(bus) != A7105_PROBE_OK ||
       a7105_probe_configure_observed_fifo_at(
-          bus, A7105_TX_RX_RESTORE_CHANNEL_SLOT) != A7105_PROBE_OK ||
+        bus, A7105_TX_RX_RESTORE_CHANNEL_SLOT) != A7105_PROBE_OK ||
       a7105_probe_write_id(bus, a7105_k80_radio_id) != A7105_PROBE_OK ||
       a7105_probe_reset_rx_fifo(bus) != A7105_PROBE_OK) {
     result.error = YISCAXIA_TX_RESTORE_FAILED;

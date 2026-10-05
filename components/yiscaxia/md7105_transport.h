@@ -7,8 +7,8 @@
 namespace esphome::yiscaxia {
 
 class Md7105Transport : public YiscaxiaTransport,
-                       public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW,
-                                             spi::CLOCK_PHASE_LEADING, spi::DATA_RATE_1MHZ> {
+  public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW,
+  spi::CLOCK_PHASE_LEADING, spi::DATA_RATE_1MHZ> {
  public:
   void setup() override;
   void dump_config() override;

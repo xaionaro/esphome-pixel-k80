@@ -44,8 +44,8 @@ bool Md7105Transport::calibrate_() {
   if (a7105_probe_send_strobe(&this->bus_, A7105_CMD_STANDBY) != A7105_PROBE_OK)
     return false;
   const uint8_t settings[][2] = {
-      {A7105_REG_CLOCK, 0xF5U}, {A7105_REG_PLL_II, 0x9EU}, {A7105_REG_PLL_III, 0x4BU},
-      {A7105_REG_PLL_IV, 0x00U}, {A7105_REG_PLL_V, 0x02U},
+    {A7105_REG_CLOCK, 0xF5U}, {A7105_REG_PLL_II, 0x9EU}, {A7105_REG_PLL_III, 0x4BU},
+    {A7105_REG_PLL_IV, 0x00U}, {A7105_REG_PLL_V, 0x02U},
   };
   for (const auto &setting : settings) {
     if (a7105_probe_write_config(&this->bus_, setting[0], setting[1]) != A7105_PROBE_OK)
@@ -77,7 +77,7 @@ bool Md7105Transport::calibrate_() {
 
 void Md7105Transport::setup() {
   this->spi_setup();
-  uint8_t readback[4]{};
+  uint8_t readback[4] {};
   if (!this->spi_is_ready() || a7105_probe_reset_device(&this->bus_) != A7105_PROBE_OK ||
       a7105_probe_configure_4wire(&this->bus_) != A7105_PROBE_OK ||
       a7105_probe_initialize_rx(&this->bus_) != A7105_PROBE_OK ||

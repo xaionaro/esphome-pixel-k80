@@ -10,7 +10,7 @@ esphome:
       - light.turn_on: {id: pixel_controller_position_1, effect: Fire Engine}
       - light.turn_on: {id: pixel_controller_position_1, effect: RGB Circle 1}
       - light.turn_on: {id: pixel_controller_position_1, effect: RGB Circle 2}
-      - light.turn_on: {id: pixel_controller_position_1, effect: Slow Rainbow}
+      - light.turn_on: {id: pixel_controller_position_1, effect: Custom Rainbow}
       - light.turn_on: {id: pixel_controller_position_1, effect: None}
       - light.turn_on: {id: pixel_controller_position_1, effect: sOs}
       - light.turn_on: {id: pixel_controller_position_1, effect: nOnE}

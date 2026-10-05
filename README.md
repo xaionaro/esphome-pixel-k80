@@ -51,11 +51,19 @@ yiscaxia:
   channel_spacing:
     id: pixel_spacing
     name: Channel transmission spacing
+  rainbow_degrees_per_step:
+    id: pixel_rainbow_step
+    name: Custom Rainbow degrees per step
+  rainbow_step_spacing:
+    id: pixel_rainbow_spacing
+    name: Custom Rainbow step spacing
 ```
 
 Add `api:` to expose the entities to Home Assistant. Use normal ESPHome API
 encryption and OTA authentication for your installation. Each controller creates
-its own position lights and the three configuration entities above.
+its own position lights and configuration entities. The two Rainbow entities are
+optional; without them, the effect uses 1° per 1000 ms. Exposed Rainbow settings
+apply to all positions of that controller and are saved when manually changed.
 For multiple controllers on one ESPHome device, use distinct controller IDs,
 `name_prefix` values and configuration entity names. Equal setting names on
 separate ESPHome logical devices use separate preferences; keep those device
@@ -80,7 +88,9 @@ esphome:
 | Position light | ON/OFF, brightness, RGB and 2600–10000 K CCT in 100 K wire steps |
 | Native effects | SOS, Lightning 1, Lightning 2, TV Screen, Police, Ambulance, Fire Engine, RGB Circle 1, RGB Circle 2 |
 | None | Static RGB/CCT; OFF preserves the desired color for the next ON |
-| Slow Rainbow | Host advances hue by 1° each second; skips while that position has pending manual traffic |
+| Custom Rainbow | Host advances hue using the configured step and interval; skips while that position has pending traffic |
+| Custom Rainbow degrees per step | Whole **1–359°**, default **1°**; changing the setting does not reset hue or transmit immediately |
+| Custom Rainbow step spacing | Whole **1–16,777,215 ms**, default **1000 ms**; minimum phase-check interval, with actual progress subject to queued traffic and radio pacing |
 | Available pairs | Ordered unique pairs such as `1A,2B,2D`: channel 1–48 and group A–F |
 | Transmission attempts | Total manual/native attempts, **1–255**, default **3**; automatic Rainbow phases always use **1** |
 | Channel transmission spacing | Minimum TX-start gap per RF channel, **1–65535 ms**, default **150 ms** |
@@ -92,8 +102,12 @@ Each table entry addresses the corresponding position light. For example,
 `1A,-,2D` enables positions 1 and 3, keeping position 2 disabled.
 Omitted positions are disabled; an empty string disables all; trailing `-`
 entries are trimmed. No spaces, lowercase groups, leading zeros, duplicate
-pairs, or trailing commas are accepted. Changed positions must be **OFF and
-idle**, including completion of pending OFF attempts and transitions.
+pairs, or trailing commas are accepted. Positions may be remapped while **ON**;
+their logical state is retained, but unfinished old-address commands are
+canceled, not redirected. Remapping does not turn the old lamp OFF or replay
+its state at the new address. Unchanged positions keep their pending attempts.
+Nested pair edits queue in order; the outermost edit drains them before returning.
+Status identifies pending edits until the final queued outcome is published.
 
 RF transmission is serial. Groups on the same channel share its spacing clock;
 eligible other channels can progress during that wait. Channels and positions
@@ -101,13 +115,18 @@ are served fairly. A newer desired state replaces pending attempts; identical
 pending state does not restart them. Large spacing values can delay OFF.
 
 Pair and transmission edits are saved immediately. Rejected edits keep the
-previous value; persistence failures report a warning/status and attempt to
-retain it, but durable state is uncertain after a storage failure. Native
+previous value; persistence failures report their cause and attempt to restore
+the previous record. Successful recovery retains the durable table; failed
+recovery explicitly reports durable state as uncertain. Native
 ESPHome light restore persists manual state through `preferences.flash_write_interval`
 (default **60s**). Wait for that interval before removing power if the latest
 manual state must survive. Pair/Number edits explicitly sync storage. Automatic
-Rainbow phases use `set_save(false)` and do not write flash or publish every phase. On restart,
-restore is drained with RF muted before restored ON states are transmitted.
+Rainbow phases use `set_save(false)` and do not write flash or publish every phase.
+Startup accepts actual light commands while RF is muted, then transmits the retained
+queue when ready. Initial restored OFF stays quiet; later explicit OFF is sent.
+Remapping cancels old deferred output without completing it or firing completion
+callbacks, including before readiness. Restored ON and later commands keep their
+original attempt budgets; logical ON state alone does not create another command.
 Keep entity names and logical device IDs stable to retain preference identity.
 `id(pixel_pairs).configuration_status()`,
 `id(pixel_attempts).configuration_status()` and
@@ -173,6 +192,12 @@ minimal wiring table above are required by this component.
 <a href="docs/photos/IMG_20261004_204706_565.jpg"><img src="docs/photos/IMG_20261004_204706_565.jpg" alt="Close-up of the wired MD7105-SY radio carrier" width="320"></a>
 
 ## Development and provenance
+
+Format project-owned C/C++ with Artistic Style 3.1 and the checked-in options:
+
+```sh
+git ls-files -z '*.h' '*.cpp' '*.c' | xargs -0 astyle --options=none --project=.astylerc
+```
 
 ```sh
 cmake -S . -B build
