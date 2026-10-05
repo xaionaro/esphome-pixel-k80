@@ -162,7 +162,9 @@ static inline int k80_controller_decode_state_packet(int profile, int slot, int 
     return -1;
   const k80_frame_checks checks = k80_check_frame(body, K80_FRAME_SIZE);
   if (!checks.sum_ok || !checks.crc_ok) return -1;
-  k80_control_values state = {body[2], body[3], 1, 0, 100, 1};
+  k80_control_values state = k80_default_controls();
+  state.mode = body[2];
+  state.level = body[3];
   if (state.mode == K80_MODE_CCT) state.ct_index = body[4];
   else if (state.mode == K80_MODE_HSI) {
     state.hue = body[5] | ((int)body[6] << 8);
