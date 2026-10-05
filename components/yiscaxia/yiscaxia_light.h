@@ -98,11 +98,11 @@ class YiscaxiaLightOutput final : public light::LightOutput {
     float intensity = values.get_state() * values.get_brightness();
     k80_control_values next = this->desired_;
     const auto effect = state->get_current_effect_index();
-    if (effect > 10) {
+    if (effect > SLOW_RAINBOW_EFFECT_INDEX) {
       ESP_LOGW("k80", "Endpoint %d rejected unknown native effect", this->endpoint_);
       return;
     }
-    if (effect == 10) {
+    if (effect == SLOW_RAINBOW_EFFECT_INDEX) {
       if (values.get_color_mode() == light::ColorMode::RGB) {
         if (!unit_value(values.get_color_brightness()) ||
             !rgb_to_state(values.get_red(), values.get_green(), values.get_blue(),
@@ -156,11 +156,13 @@ class YiscaxiaLightOutput final : public light::LightOutput {
     }
     // Desired color survives OFF and native effects; only the wire OFF is canonical.
     this->desired_ = next;
-    if (!effect || effect == 10) this->last_non_fls_mode_ = next.mode;
+    if (!effect || effect == SLOW_RAINBOW_EFFECT_INDEX) this->last_non_fls_mode_ = next.mode;
   }
 
  protected:
   friend class YiscaxiaSlowRainbowEffect;
+  // Host-generated Rainbow follows the lamp's native effect selectors.
+  static constexpr uint32_t SLOW_RAINBOW_EFFECT_INDEX = K80_NATIVE_EFFECT_MAX + 1;
   YiscaxiaController *parent_;
   const int endpoint_;
   int profile_{K80_CONTROLLER_SEMANTIC_PROFILE_NONE};
@@ -186,7 +188,9 @@ inline void YiscaxiaSlowRainbowEffect::apply() {
   const uint32_t now = millis();
   if (now - this->last_step_ms_ < 1000) return;
   this->last_step_ms_ = now;
-  if (!this->state_ || this->state_->get_current_effect_index() != 10 || this->state_->remote_values.get_state() == 0 ||
+  if (!this->state_ ||
+      this->state_->get_current_effect_index() != YiscaxiaLightOutput::SLOW_RAINBOW_EFFECT_INDEX ||
+      this->state_->remote_values.get_state() == 0 ||
       !this->output_->parent_->endpoint_enabled(this->output_->endpoint_) ||
       this->output_->parent_->endpoint_pending(this->output_->endpoint_) || this->output_->manual_pending_)
     return;
