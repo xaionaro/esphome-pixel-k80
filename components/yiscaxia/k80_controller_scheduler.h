@@ -8,6 +8,7 @@
 enum {
   K80_CONTROLLER_ENDPOINT_LIMIT = (int)K80_CONTROLLER_RF_SLOT_COUNT * (int)K80_GROUP_COUNT,
   K80_CONTROLLER_DEFAULT_ATTEMPTS = 3,
+  K80_CONTROLLER_ATTEMPTS_MAX = UINT8_MAX,
   K80_CONTROLLER_DEFAULT_SPACING_MS = 150,
 };
 
@@ -41,7 +42,7 @@ typedef struct {
 
 static inline int k80_controller_setting_valid(int spacing, float value) {
   return isfinite(value) && value == floorf(value) && value >= 1 &&
-      value <= (spacing ? 65535 : 255);
+      value <= (spacing ? UINT16_MAX : K80_CONTROLLER_ATTEMPTS_MAX);
 }
 static inline int k80_controller_set_attempts(k80_controller_queue *q, float value) {
   if (!q || !k80_controller_setting_valid(0, value)) return 0;
@@ -122,7 +123,7 @@ static inline int k80_controller_states_equal(const k80_control_values *a,
 // Zero selects the configured total; an explicit total belongs only to this command.
 static inline int k80_controller_request_state_attempts(k80_controller_queue *q, int endpoint,
     const k80_control_values *state, int attempts) {
-  if (attempts < 0 || attempts > 255) return 0;
+  if (attempts < 0 || attempts > K80_CONTROLLER_ATTEMPTS_MAX) return 0;
   if (!q || (!q->armed && !q->draining) || !q->pending || endpoint < 0 ||
       (size_t)endpoint >= q->count) return 0;
   k80_controller_pending *pending = &q->pending[endpoint];
