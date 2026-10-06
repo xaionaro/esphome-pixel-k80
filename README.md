@@ -181,15 +181,36 @@ and [Seeed XIAO ESP32-C5 documentation](https://wiki.seeedstudio.com/xiao_esp32c
 
 Pixel K80 RGB light: front and rear controls.
 
-<a href="docs/photos/IMG_20261004_204606_309.jpg"><img src="docs/photos/IMG_20261004_204606_309.jpg" alt="Pixel K80 light front with diffuser and barn doors" width="320"></a>
-<a href="docs/photos/IMG_20261004_204612_264.jpg"><img src="docs/photos/IMG_20261004_204612_264.jpg" alt="Pixel K80 RGB rear panel, display and controls" width="320"></a>
+<a href="docs/photos/pixel-k80-front.jpg"><img src="docs/photos/pixel-k80-front.jpg" alt="Pixel K80 light front with diffuser and barn doors" width="320"></a>
+<a href="docs/photos/pixel-k80-rear-controls.jpg"><img src="docs/photos/pixel-k80-rear-controls.jpg" alt="Pixel K80 RGB rear panel, display and controls" width="320"></a>
 
 XIAO ESP32-C5 connected to the MD7105-SY, and a close-up of the radio module.
 The prototype includes extra investigation wires; only the connections in the
 minimal wiring table above are required by this component.
 
-<a href="docs/photos/IMG_20261004_204655_511.jpg"><img src="docs/photos/IMG_20261004_204655_511.jpg" alt="XIAO ESP32-C5 with external antenna wired to MD7105-SY" width="320"></a>
-<a href="docs/photos/IMG_20261004_204706_565.jpg"><img src="docs/photos/IMG_20261004_204706_565.jpg" alt="Close-up of the wired MD7105-SY radio carrier" width="320"></a>
+<a href="docs/photos/xiao-esp32c5-md7105-prototype.jpg"><img src="docs/photos/xiao-esp32c5-md7105-prototype.jpg" alt="XIAO ESP32-C5 with external antenna wired to MD7105-SY" width="320"></a>
+<a href="docs/photos/md7105-sy-prototype-closeup.jpg"><img src="docs/photos/md7105-sy-prototype-closeup.jpg" alt="Close-up of the wired MD7105-SY radio carrier" width="320"></a>
+
+### Assembled controller
+
+Controller in a transparent enclosure, with USB power and an external Wi-Fi
+antenna. Microscope views show the soldered connections and both board sides;
+use the wiring table above, not wire colors, to identify connections.
+
+<a href="docs/photos/k80-controller-enclosure-side.jpg"><img src="docs/photos/k80-controller-enclosure-side.jpg" alt="Assembled K80 controller in a transparent enclosure with USB cable and external antenna" width="640"></a>
+
+Soldered radio and ESP32-C5 connections:
+
+<a href="docs/photos/md7105-sy-soldered-wiring.webp"><img src="docs/photos/md7105-sy-soldered-wiring.webp" alt="Microscope view of soldered MD7105-SY connections" width="320"></a>
+<a href="docs/photos/xiao-esp32c5-soldered-wiring.webp"><img src="docs/photos/xiao-esp32c5-soldered-wiring.webp" alt="Microscope view of soldered XIAO ESP32-C5 connections" width="320"></a>
+
+Enclosure views:
+
+<a href="docs/photos/k80-controller-esp32c5-mounted-inside.webp"><img src="docs/photos/k80-controller-esp32c5-mounted-inside.webp" alt="ESP32-C5 board mounted inside the enclosure" width="320"></a>
+<a href="docs/photos/k80-controller-enclosure-radio-without-lid.webp"><img src="docs/photos/k80-controller-enclosure-radio-without-lid.webp" alt="Top view of the MD7105-SY in the enclosure with the lid removed" width="320"></a>
+<a href="docs/photos/k80-controller-enclosure-radio-cover.webp"><img src="docs/photos/k80-controller-enclosure-radio-cover.webp" alt="Radio module viewed through the enclosure cover" width="320"></a>
+<a href="docs/photos/k80-controller-enclosure-radio-wiring.webp"><img src="docs/photos/k80-controller-enclosure-radio-wiring.webp" alt="Radio wiring and antenna trace viewed through the enclosure" width="320"></a>
+<a href="docs/photos/k80-controller-enclosure-usb-side.webp"><img src="docs/photos/k80-controller-enclosure-usb-side.webp" alt="Oblique view of the enclosed controller and USB connector" width="320"></a>
 
 ## Development and provenance
 
