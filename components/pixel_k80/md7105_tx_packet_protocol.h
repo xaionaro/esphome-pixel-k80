@@ -1,6 +1,6 @@
 #pragma once
 #include "md7105_probe_protocol.h"
-#include "yiscaxia_transport_types.h"
+#include "pixel_k80_transport_types.h"
 #include <string.h>
 // The observed radio FIFO configuration must fit the K80 body sent below.
 #ifdef __cplusplus
@@ -19,11 +19,11 @@ static const uint8_t a7105_k80_radio_id[4] = {0xA5, 0x5A, 0xB9, 0x46};
 
 typedef uint64_t (*a7105_tx_now_fn)(void *);
 typedef void (*a7105_tx_delay_fn)(void *, unsigned);
-static inline yiscaxia_tx_result a7105_tx_packet_run(
-  const a7105_probe_bus_t *bus, const yiscaxia_tx_packet *packet, int slot,
+static inline pixel_k80_tx_result a7105_tx_packet_run(
+  const a7105_probe_bus_t *bus, const pixel_k80_tx_packet *packet, int slot,
   a7105_tx_now_fn now, a7105_tx_delay_fn delay, void *clock) {
-  yiscaxia_tx_result result = {0};
-  result.error = YISCAXIA_TX_FAILED;
+  pixel_k80_tx_result result = {0};
+  result.error = PIXEL_K80_TX_FAILED;
   if (packet == NULL || slot < 0 || slot >= A7105_SCAN_CHANNEL_COUNT) return result;
   if (!a7105_probe_bus_valid(bus) || now == NULL || delay == NULL) return result;
 
@@ -60,7 +60,7 @@ static inline yiscaxia_tx_result a7105_tx_packet_run(
     if ((mode & 3U) == 3U) result.active_seen = 1;
     if (result.active_seen && (mode & 1U) == 0U) {
       result.completed = 1;
-      result.error = YISCAXIA_TX_OK;
+      result.error = PIXEL_K80_TX_OK;
       break;
     }
     delay(clock, 50);
@@ -70,13 +70,13 @@ cleanup:
   // Standby is attempted independently even after an earlier SPI error.
   // If it fails, stop here: the caller must halt all radio service.
   if (a7105_probe_send_strobe(bus, A7105_CMD_STANDBY) != A7105_PROBE_OK) {
-    result.error = YISCAXIA_TX_STANDBY_FAILED;
+    result.error = PIXEL_K80_TX_STANDBY_FAILED;
     return result;
   }
   if (result.trigger_attempted) {
     result.elapsed_us = now(clock) - started;
     if (result.elapsed_us > 5000U) {
-      result.error = YISCAXIA_TX_DEADLINE_EXCEEDED;
+      result.error = PIXEL_K80_TX_DEADLINE_EXCEEDED;
       result.completed = 0;
     }
   }
@@ -85,7 +85,7 @@ cleanup:
         bus, A7105_TX_RX_RESTORE_CHANNEL_SLOT) != A7105_PROBE_OK ||
       a7105_probe_write_id(bus, a7105_k80_radio_id) != A7105_PROBE_OK ||
       a7105_probe_reset_rx_fifo(bus) != A7105_PROBE_OK) {
-    result.error = YISCAXIA_TX_RESTORE_FAILED;
+    result.error = PIXEL_K80_TX_RESTORE_FAILED;
     return result;
   }
   result.restored = 1;

@@ -1,5 +1,5 @@
 esphome:
-  name: yiscaxia-schema
+  name: pixel-k80-schema
   build_path: build
 esp32:
   board: esp32dev
@@ -9,13 +9,13 @@ external_components:
   - source:
       type: local
       path: '@COMPONENTS@'
-    components: [yiscaxia]
+    components: [pixel_k80]
 spi:
   id: radio_spi
   clk_pin: GPIO18
   mosi_pin: GPIO23
   miso_pin: GPIO19
-yiscaxia:
+pixel_k80:
   id: pixel_controller
   transport:
     type: md7105

@@ -4,7 +4,7 @@ esphome:
       name: Panel A
     - id: panel_b
       name: Panel B
-yiscaxia:
+pixel_k80:
   - id: controller_a
     name_prefix: Panel A
     transport:

@@ -42,10 +42,10 @@ int main(void) {
   int failures = 0;
   struct fake f = {0};
   a7105_probe_bus_t bus = {&f, transfer};
-  yiscaxia_tx_result r = {0};
+  pixel_k80_tx_result r = {0};
   for (int group = 0; group < 6; ++group) {
     for (int level = 0; level <= 100; level += 100) {
-      yiscaxia_tx_packet packet = {{0}};
+      pixel_k80_tx_packet packet = {{0}};
       failures += check(k80_controller_build_packet(group, level, packet.bytes) == 0,
                         "group endpoint builds");
       memset(&f, 0, sizeof(f));
@@ -58,7 +58,7 @@ int main(void) {
                             "shared FIFO retains exact typed body");
     }
   }
-  yiscaxia_tx_packet packet = {{0}};
+  pixel_k80_tx_packet packet = {{0}};
   failures += check(k80_controller_build_packet(3, 0, packet.bytes) == 0, "carrier test body");
   for (int slot = 0; slot < 48; ++slot) {
     memset(&f, 0, sizeof(f));

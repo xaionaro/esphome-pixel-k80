@@ -7,14 +7,14 @@
 #include <cstring>
 #include <utility>
 #include <vector>
-#include "yiscaxia.h"
+#include "pixel_k80.h"
 
 
-namespace esphome::yiscaxia {
+namespace esphome::pixel_k80 {
 
-class YiscaxiaPairs final : public text::Text, public Component {
+class PixelK80Pairs final : public text::Text, public Component {
  public:
-  explicit YiscaxiaPairs(YiscaxiaController *parent) : parent_(parent) {}
+  explicit PixelK80Pairs(PixelK80Controller *parent) : parent_(parent) {}
   const std::string &configuration_status() const { return status_; }
   std::string format_description() const {
     return "Format: 1A,2B,2D; channel1-48 + groupA-F. Up to " +
@@ -46,7 +46,7 @@ class YiscaxiaPairs final : public text::Text, public Component {
       if (error.empty())
         error = parent_->replace_pairs(std::string(saved.value, terminator - saved.value)).error;
       if (!error.empty()) {
-        ESP_LOGW("k80.pairs", "Saved RF pairs invalid: %s; using defaults", error.c_str());
+        ESP_LOGW("pixel_k80.pairs", "Saved RF pairs invalid: %s; using defaults", error.c_str());
         status_ = "Saved table invalid: " + error + "; using configured defaults";
       } else {
         known_saved_ = true;
@@ -59,7 +59,7 @@ class YiscaxiaPairs final : public text::Text, public Component {
  protected:
   static constexpr uint8_t RECORD_VERSION = 2;
   struct SavedPairs { uint8_t version{RECORD_VERSION}; char value[256] {}; };
-  YiscaxiaController *parent_;
+  PixelK80Controller *parent_;
   ESPPreferenceObject preference_;
   std::string status_{"Ready"};
   bool known_saved_{false};
@@ -123,7 +123,7 @@ class YiscaxiaPairs final : public text::Text, public Component {
     k80_controller_config::Positions proposed;
     const auto result = this->parent_->prepare_pairs(value, &proposed);
     if (!result) {
-      ESP_LOGW("k80.pairs", "Pairs rejected: %s", result.error.c_str());
+      ESP_LOGW("pixel_k80.pairs", "Pairs rejected: %s", result.error.c_str());
       this->complete_edit(previous, "Rejected: " + result.error, true);
       return;
     }
@@ -139,14 +139,14 @@ class YiscaxiaPairs final : public text::Text, public Component {
     if (!saved_ok || !synced_ok) {
       const auto outcome = std::string("Persistence failed: ") + (saved_ok ? "sync" : "save") +
                            " failed; " + this->recover_record(previous);
-      ESP_LOGW("k80.pairs", "%s", outcome.c_str());
+      ESP_LOGW("pixel_k80.pairs", "%s", outcome.c_str());
       this->complete_edit(previous, outcome, true);
       return;
     }
     const auto applied = this->parent_->apply_pairs(proposed);
     if (!applied) {
       const auto outcome = "Application failed: " + applied.error + "; " + this->recover_record(previous);
-      ESP_LOGE("k80.pairs", "%s", outcome.c_str());
+      ESP_LOGE("pixel_k80.pairs", "%s", outcome.c_str());
       this->complete_edit(this->parent_->pairs(), outcome, true);
       return;
     }
@@ -155,4 +155,4 @@ class YiscaxiaPairs final : public text::Text, public Component {
   }
 };
 
-}  // namespace esphome::yiscaxia
+}  // namespace esphome::pixel_k80

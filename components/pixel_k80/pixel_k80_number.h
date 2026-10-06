@@ -5,13 +5,13 @@
 #include "esphome/core/preferences.h"
 #include <cmath>
 #include <string>
-#include "yiscaxia.h"
+#include "pixel_k80.h"
 
-namespace esphome::yiscaxia {
+namespace esphome::pixel_k80 {
 
-class YiscaxiaNumber final : public number::Number, public Component {
+class PixelK80Number final : public number::Number, public Component {
  public:
-  explicit YiscaxiaNumber(YiscaxiaController *parent, YiscaxiaSetting setting)
+  explicit PixelK80Number(PixelK80Controller *parent, PixelK80Setting setting)
     : parent_(parent), setting_(setting) {}
   float get_setup_priority() const override { return 799.4f; }
   const std::string &configuration_status() const { return this->status_; }
@@ -22,7 +22,7 @@ class YiscaxiaNumber final : public number::Number, public Component {
       this->mark_failed();
       return;
     }
-    if (this->setting_ == YiscaxiaSetting::RAINBOW_STEP_SPACING)
+    if (this->setting_ == PixelK80Setting::RAINBOW_STEP_SPACING)
       this->setup_record<5>();
     else
       this->setup_record<3>();
@@ -36,21 +36,21 @@ class YiscaxiaNumber final : public number::Number, public Component {
   };
   static_assert(sizeof(Record<3>) == 3);
   static_assert(sizeof(Record<5>) == 5);
-  YiscaxiaController *parent_;
-  YiscaxiaSetting setting_;
+  PixelK80Controller *parent_;
+  PixelK80Setting setting_;
   bool known_saved_{false};
   ESPPreferenceObject preference_;
   std::string status_{"Ready"};
 
   uint32_t preference_salt() const {
     switch (this->setting_) {
-      case YiscaxiaSetting::TRANSMISSION_ATTEMPTS:
+      case PixelK80Setting::TRANSMISSION_ATTEMPTS:
         return 0x59504304;
-      case YiscaxiaSetting::CHANNEL_SPACING:
+      case PixelK80Setting::CHANNEL_SPACING:
         return 0x59504303;
-      case YiscaxiaSetting::RAINBOW_STEP_DEGREES:
+      case PixelK80Setting::RAINBOW_STEP_DEGREES:
         return 0x59504305;
-      case YiscaxiaSetting::RAINBOW_STEP_SPACING:
+      case PixelK80Setting::RAINBOW_STEP_SPACING:
         return 0x59504306;
       default:
         return 0;
@@ -105,7 +105,7 @@ class YiscaxiaNumber final : public number::Number, public Component {
   bool save_value(uint32_t value) {
     // Existing radio settings and degree steps retain uint16 records;
     // only the new long Rainbow interval needs a uint32 record.
-    if (this->setting_ == YiscaxiaSetting::RAINBOW_STEP_SPACING) {
+    if (this->setting_ == PixelK80Setting::RAINBOW_STEP_SPACING) {
       const auto record = encode<5>(value);
       return this->preference_.save(&record);
     }
@@ -156,4 +156,4 @@ class YiscaxiaNumber final : public number::Number, public Component {
   }
 };
 
-}  // namespace esphome::yiscaxia
+}  // namespace esphome::pixel_k80

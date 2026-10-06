@@ -1,12 +1,12 @@
 #pragma once
 
-#include "yiscaxia_transport.h"
+#include "pixel_k80_transport.h"
 #include "md7105_tx_packet_protocol.h"
 #include "esphome/components/spi/spi.h"
 
-namespace esphome::yiscaxia {
+namespace esphome::pixel_k80 {
 
-class Md7105Transport : public YiscaxiaTransport,
+class Md7105Transport : public PixelK80Transport,
   public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW,
   spi::CLOCK_PHASE_LEADING, spi::DATA_RATE_1MHZ> {
  public:
@@ -15,7 +15,7 @@ class Md7105Transport : public YiscaxiaTransport,
   float get_setup_priority() const override { return 801.0f; }
   bool ready() const override { return this->ready_; }
   uint64_t now_us() const override;
-  yiscaxia_tx_result transmit(const yiscaxia_tx_packet &packet, int slot) override;
+  pixel_k80_tx_result transmit(const pixel_k80_tx_packet &packet, int slot) override;
 
  protected:
   static int transfer_(void *context, const uint8_t *tx, uint8_t *rx, size_t length);
@@ -27,4 +27,4 @@ class Md7105Transport : public YiscaxiaTransport,
   a7105_probe_bus_t bus_{this, transfer_};
 };
 
-}  // namespace esphome::yiscaxia
+}  // namespace esphome::pixel_k80

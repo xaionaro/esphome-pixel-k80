@@ -27,7 +27,7 @@ endfunction()
 check_case(default "${base}" TRUE "")
 function(check_typed_positions path expected)
   file(READ "${path}" code)
-  string(REGEX MATCHALL "new\\([^)]*\\) yiscaxia::YiscaxiaLightState\\(" typed "${code}")
+  string(REGEX MATCHALL "new\\([^)]*\\) pixel_k80::PixelK80LightState\\(" typed "${code}")
   list(LENGTH typed count)
   if(NOT count EQUAL expected OR code MATCHES "new\\([^)]*\\) light::LightState\\(")
     message(FATAL_ERROR "Expected ${expected} typed position states in ${path}, got ${count}")
@@ -99,13 +99,13 @@ check_typed_positions("${OUTPUT_DIR}/build/src/main.cpp" 12)
 foreach(boundary IN ITEMS
     "pixel_pairs->traits.set_max_length(47)"
     "pixel_attempts->traits.set_min_value(1)"
-    "pixel_attempts->traits.set_max_value(yiscaxia::configuration_setting_max(yiscaxia::YiscaxiaSetting::TRANSMISSION_ATTEMPTS))"
+    "pixel_attempts->traits.set_max_value(pixel_k80::configuration_setting_max(pixel_k80::PixelK80Setting::TRANSMISSION_ATTEMPTS))"
     "pixel_spacing->traits.set_min_value(1)"
-    "pixel_spacing->traits.set_max_value(yiscaxia::configuration_setting_max(yiscaxia::YiscaxiaSetting::CHANNEL_SPACING))"
+    "pixel_spacing->traits.set_max_value(pixel_k80::configuration_setting_max(pixel_k80::PixelK80Setting::CHANNEL_SPACING))"
     "pixel_rainbow_step->traits.set_min_value(1)"
-    "pixel_rainbow_step->traits.set_max_value(yiscaxia::configuration_setting_max(yiscaxia::YiscaxiaSetting::RAINBOW_STEP_DEGREES))"
+    "pixel_rainbow_step->traits.set_max_value(pixel_k80::configuration_setting_max(pixel_k80::PixelK80Setting::RAINBOW_STEP_DEGREES))"
     "pixel_rainbow_spacing->traits.set_min_value(1)"
-    "pixel_rainbow_spacing->traits.set_max_value(yiscaxia::configuration_setting_max(yiscaxia::YiscaxiaSetting::RAINBOW_STEP_SPACING))")
+    "pixel_rainbow_spacing->traits.set_max_value(pixel_k80::configuration_setting_max(pixel_k80::PixelK80Setting::RAINBOW_STEP_SPACING))")
   string(FIND "${generated}" "${boundary}" found)
   if(found LESS 0)
     message(FATAL_ERROR "Missing generated entity boundary: ${boundary}")
@@ -129,9 +129,9 @@ check_case(legacy-rainbow-effect "${legacy_content}" FALSE "Available effects:.*
 string(REPLACE "  id: pixel_controller\n" "  id: pixel_controller\n  effects: [{lambda: {name: Arbitrary}}]\n" content "${base}")
 check_case(arbitrary-effect "${content}" FALSE "effects.*invalid option|invalid option.*effects")
 file(READ "${PROJECT_DIR}/tests/fixtures/multi-device.yaml" multiple)
-string(FIND "${base}" "yiscaxia:\n" component_begin)
+string(FIND "${base}" "pixel_k80:\n" component_begin)
 string(SUBSTRING "${base}" 0 ${component_begin} platform)
-string(FIND "${multiple}" "yiscaxia:\n" multiple_begin)
+string(FIND "${multiple}" "pixel_k80:\n" multiple_begin)
 string(SUBSTRING "${multiple}" 0 ${multiple_begin} devices)
 string(REPLACE "esphome:\n" "" devices "${devices}")
 string(REPLACE "  build_path: ${OUTPUT_DIR}/build\n" "  build_path: ${OUTPUT_DIR}/multi-build\n${devices}" platform "${platform}")

@@ -3,30 +3,30 @@
 #include <cmath>
 #include <vector>
 #include "esphome/core/component.h"
-#include "yiscaxia_light_state.h"
+#include "pixel_k80_light_state.h"
 #include "k80_controller_config.h"
-#include "yiscaxia_transport.h"
+#include "pixel_k80_transport.h"
 
-namespace esphome::yiscaxia {
+namespace esphome::pixel_k80 {
 
 constexpr uint16_t RAINBOW_HUE_PERIOD = 360;
 
-enum class YiscaxiaSetting {
+enum class PixelK80Setting {
   TRANSMISSION_ATTEMPTS,
   CHANNEL_SPACING,
   RAINBOW_STEP_DEGREES,
   RAINBOW_STEP_SPACING,
 };
 
-inline uint32_t configuration_setting_max(YiscaxiaSetting setting) {
+inline uint32_t configuration_setting_max(PixelK80Setting setting) {
   switch (setting) {
-    case YiscaxiaSetting::TRANSMISSION_ATTEMPTS:
+    case PixelK80Setting::TRANSMISSION_ATTEMPTS:
       return k80_controller_setting_max(K80_CONTROLLER_SETTING_ATTEMPTS);
-    case YiscaxiaSetting::CHANNEL_SPACING:
+    case PixelK80Setting::CHANNEL_SPACING:
       return k80_controller_setting_max(K80_CONTROLLER_SETTING_CHANNEL_SPACING);
-    case YiscaxiaSetting::RAINBOW_STEP_DEGREES:
+    case PixelK80Setting::RAINBOW_STEP_DEGREES:
       return RAINBOW_HUE_PERIOD - 1;  // A full-cycle step would leave the phase unchanged.
-    case YiscaxiaSetting::RAINBOW_STEP_SPACING:
+    case PixelK80Setting::RAINBOW_STEP_SPACING:
       // Number's float input represents every millisecond and the rejected boundary exactly.
       return (1U << 24) - 1;
     default:
@@ -34,21 +34,21 @@ inline uint32_t configuration_setting_max(YiscaxiaSetting setting) {
   }
 }
 
-inline bool configuration_setting_valid(YiscaxiaSetting setting, float value) {
+inline bool configuration_setting_valid(PixelK80Setting setting, float value) {
   return std::isfinite(value) && value == std::floor(value) && value >= 1 &&
          value <= configuration_setting_max(setting);
 }
 
-class YiscaxiaController : public Component {
+class PixelK80Controller : public Component {
  public:
-  void set_transport(YiscaxiaTransport *transport) { this->transport_ = transport; }
+  void set_transport(PixelK80Transport *transport) { this->transport_ = transport; }
   void set_position_capacity(size_t capacity) { this->capacity_ = capacity; }
   void set_initial_pairs(const std::string &pairs) { this->initial_pairs_ = pairs; }
   float get_setup_priority() const override { return 800.0f; }
   void setup() override;
   void loop() override;
   void dump_config() override;
-  void register_light(int endpoint, YiscaxiaLightState *state) { this->lights_[endpoint] = state; }
+  void register_light(int endpoint, PixelK80LightState *state) { this->lights_[endpoint] = state; }
   bool endpoint_enabled(int endpoint) const;
   bool endpoint_pending(int endpoint) const;
   bool endpoint_remapping(int endpoint) const { return endpoint == this->remapping_endpoint_; }
@@ -71,20 +71,20 @@ class YiscaxiaController : public Component {
     }
   }
   bool set_transmission_setting(k80_controller_setting setting, float value);
-  uint32_t configuration_setting(YiscaxiaSetting setting) const;
-  bool set_configuration_setting(YiscaxiaSetting setting, float value);
+  uint32_t configuration_setting(PixelK80Setting setting) const;
+  bool set_configuration_setting(PixelK80Setting setting, float value);
 
  protected:
   size_t capacity_{12};
   std::string initial_pairs_{"1A,1B,1C,1D,1E,1F"};
-  YiscaxiaTransport *transport_{nullptr};
+  PixelK80Transport *transport_{nullptr};
   k80_controller_queue queue_{};
   std::vector<k80_controller_pending> pending_;
-  std::vector<YiscaxiaLightState *> lights_;
+  std::vector<PixelK80LightState *> lights_;
   bool initialized_{false};
   int remapping_endpoint_{-1};
   uint16_t rainbow_step_degrees_{1};
   uint32_t rainbow_step_spacing_ms_{1000};
 };
 
-}  // namespace esphome::yiscaxia
+}  // namespace esphome::pixel_k80

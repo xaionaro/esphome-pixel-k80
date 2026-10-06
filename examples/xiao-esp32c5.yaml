@@ -1,5 +1,5 @@
 esphome:
-  name: yiscaxia-controller
+  name: pixel-k80-controller
   friendly_name: Pixel K80 Controller
 
 esp32:
@@ -12,7 +12,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [yiscaxia]
+    components: [pixel_k80]
 
 logger:
 api:
@@ -28,7 +28,7 @@ spi:
   mosi_pin: GPIO10
   miso_pin: GPIO9
 
-yiscaxia:
+pixel_k80:
   id: pixel_controller
   transport:
     type: md7105

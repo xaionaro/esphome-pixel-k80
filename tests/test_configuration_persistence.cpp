@@ -1,14 +1,14 @@
-#include "yiscaxia_pairs.h"
-#include "yiscaxia_number.h"
+#include "pixel_k80_pairs.h"
+#include "pixel_k80_number.h"
 #include "sdk_runtime.h"
 #include "test_check.h"
 #include <algorithm>
 
 using namespace esphome;
-using namespace esphome::yiscaxia;
+using namespace esphome::pixel_k80;
 
 namespace {
-class Controller : public YiscaxiaController {
+class Controller : public PixelK80Controller {
  public:
   void arm() { queue_.armed = 1; }
   const k80_controller_pending &pending(size_t endpoint) const { return pending_[endpoint]; }
@@ -24,37 +24,37 @@ constexpr uint32_t RAINBOW_DEGREES_SALT = 0x59504305;
 constexpr uint32_t RAINBOW_SPACING_SALT = 0x59504306;
 constexpr uint32_t UNRELATED = 0xaabbccdd;
 struct NumberCase {
-  YiscaxiaSetting setting;
+  PixelK80Setting setting;
   uint32_t salt, default_value, maximum;
   size_t record_size;
   const char *argument;
 };
 const NumberCase NUMBER_CASES[] = {
-  {YiscaxiaSetting::TRANSMISSION_ATTEMPTS, ATTEMPTS_SALT, 3, 255, 3, "attempts"},
-  {YiscaxiaSetting::CHANNEL_SPACING, SPACING_SALT, 150, 65535, 3, "spacing"},
-  {YiscaxiaSetting::RAINBOW_STEP_DEGREES, RAINBOW_DEGREES_SALT, 1, 359, 3, "rainbow-step"},
-  {YiscaxiaSetting::RAINBOW_STEP_SPACING, RAINBOW_SPACING_SALT, 1000, 16777215, 5, "rainbow-spacing"},
+  {PixelK80Setting::TRANSMISSION_ATTEMPTS, ATTEMPTS_SALT, 3, 255, 3, "attempts"},
+  {PixelK80Setting::CHANNEL_SPACING, SPACING_SALT, 150, 65535, 3, "spacing"},
+  {PixelK80Setting::RAINBOW_STEP_DEGREES, RAINBOW_DEGREES_SALT, 1, 359, 3, "rainbow-step"},
+  {PixelK80Setting::RAINBOW_STEP_SPACING, RAINBOW_SPACING_SALT, 1000, 16777215, 5, "rainbow-spacing"},
 };
 void bind(EntityBase &entity, bool pairs, Device *device = nullptr) {
   registrations = {{&entity, pairs ? "Pairs" : "Transmission", pairs ? PAIRS_HASH : NUMBER_HASH, device}};
   original_setup();
   registrations.clear();
 }
-void initialize(YiscaxiaPairs &field, Device *device = nullptr) {
+void initialize(PixelK80Pairs &field, Device *device = nullptr) {
   bind(field, true, device);
   field.traits.set_min_length(0);
   field.traits.set_max_length(255);
   field.setup();
 }
-void initialize(YiscaxiaNumber &field, YiscaxiaSetting setting, Device *device = nullptr) {
+void initialize(PixelK80Number &field, PixelK80Setting setting, Device *device = nullptr) {
   bind(field, false, device);
   field.traits.set_min_value(1);
   field.traits.set_max_value(configuration_setting_max(setting));
   field.traits.set_step(1);
   field.setup();
 }
-void command(YiscaxiaPairs &field, const std::string &value) { field.make_call().set_value(value).perform(); }
-void command(YiscaxiaNumber &field, float value) { field.make_call().set_value(value).perform(); }
+void command(PixelK80Pairs &field, const std::string &value) { field.make_call().set_value(value).perform(); }
+void command(PixelK80Number &field, float value) { field.make_call().set_value(value).perform(); }
 void attach(ESPPreferences &prefs) {
   global_preferences = &prefs;
   host::fault_preferences = &prefs;
@@ -96,10 +96,10 @@ int isolation() {
   Device first_device, second_device;
   first_device.set_device_id(0x11111111);
   second_device.set_device_id(0x22222222);
-  YiscaxiaController first, second;
+  PixelK80Controller first, second;
   first.setup();
   second.setup();
-  YiscaxiaPairs a(&first), b(&second);
+  PixelK80Pairs a(&first), b(&second);
   initialize(a, &first_device);
   initialize(b, &second_device);
   CHECK(a.get_object_id_hash() == b.get_object_id_hash());
@@ -108,12 +108,12 @@ int isolation() {
   CHECK(prefs.requests[1].first == (PAIRS_HASH ^ second_device.get_device_id() ^ PAIRS_SALT));
   command(a, "2A,-,2C");
   command(b, "3A,3B");
-  YiscaxiaNumber ar(&first, YiscaxiaSetting::TRANSMISSION_ATTEMPTS), br(&second, YiscaxiaSetting::TRANSMISSION_ATTEMPTS);
-  YiscaxiaNumber as(&first, YiscaxiaSetting::CHANNEL_SPACING), bs(&second, YiscaxiaSetting::CHANNEL_SPACING);
-  initialize(ar, YiscaxiaSetting::TRANSMISSION_ATTEMPTS, &first_device);
-  initialize(br, YiscaxiaSetting::TRANSMISSION_ATTEMPTS, &second_device);
-  initialize(as, YiscaxiaSetting::CHANNEL_SPACING, &first_device);
-  initialize(bs, YiscaxiaSetting::CHANNEL_SPACING, &second_device);
+  PixelK80Number ar(&first, PixelK80Setting::TRANSMISSION_ATTEMPTS), br(&second, PixelK80Setting::TRANSMISSION_ATTEMPTS);
+  PixelK80Number as(&first, PixelK80Setting::CHANNEL_SPACING), bs(&second, PixelK80Setting::CHANNEL_SPACING);
+  initialize(ar, PixelK80Setting::TRANSMISSION_ATTEMPTS, &first_device);
+  initialize(br, PixelK80Setting::TRANSMISSION_ATTEMPTS, &second_device);
+  initialize(as, PixelK80Setting::CHANNEL_SPACING, &first_device);
+  initialize(bs, PixelK80Setting::CHANNEL_SPACING, &second_device);
   CHECK(prefs.requests[2].first == (NUMBER_HASH ^ first_device.get_device_id() ^ ATTEMPTS_SALT));
   CHECK(prefs.requests[3].first == (NUMBER_HASH ^ second_device.get_device_id() ^ ATTEMPTS_SALT));
   CHECK(prefs.requests[4].first == (NUMBER_HASH ^ first_device.get_device_id() ^ SPACING_SALT));
@@ -123,17 +123,17 @@ int isolation() {
   command(as, 1234);
   command(bs, 2345);
   CHECK(first.pairs() == "2A,-,2C" && second.pairs() == "3A,3B");
-  CHECK(first.configuration_setting(YiscaxiaSetting::TRANSMISSION_ATTEMPTS) == 7 &&
-        second.configuration_setting(YiscaxiaSetting::TRANSMISSION_ATTEMPTS) == 9);
-  CHECK(first.configuration_setting(YiscaxiaSetting::CHANNEL_SPACING) == 1234 &&
-        second.configuration_setting(YiscaxiaSetting::CHANNEL_SPACING) == 2345);
+  CHECK(first.configuration_setting(PixelK80Setting::TRANSMISSION_ATTEMPTS) == 7 &&
+        second.configuration_setting(PixelK80Setting::TRANSMISSION_ATTEMPTS) == 9);
+  CHECK(first.configuration_setting(PixelK80Setting::CHANNEL_SPACING) == 1234 &&
+        second.configuration_setting(PixelK80Setting::CHANNEL_SPACING) == 2345);
   for (const auto &spec : NUMBER_CASES) {
-    if (spec.setting != YiscaxiaSetting::RAINBOW_STEP_DEGREES &&
-        spec.setting != YiscaxiaSetting::RAINBOW_STEP_SPACING) continue;
+    if (spec.setting != PixelK80Setting::RAINBOW_STEP_DEGREES &&
+        spec.setting != PixelK80Setting::RAINBOW_STEP_SPACING) continue;
     const uint32_t first_value = spec.record_size == 5 ? 234567 : 31;
     const uint32_t second_value = spec.record_size == 5 ? 345678 : 57;
     const auto request = prefs.requests.size();
-    YiscaxiaNumber first_field(&first, spec.setting), second_field(&second, spec.setting);
+    PixelK80Number first_field(&first, spec.setting), second_field(&second, spec.setting);
     initialize(first_field, spec.setting, &first_device);
     initialize(second_field, spec.setting, &second_device);
     const uint32_t first_key = NUMBER_HASH ^ first_device.get_device_id() ^ spec.salt;
@@ -149,26 +149,26 @@ int isolation() {
   }
   const auto saves = prefs.saves;
   prefs.reboot();
-  YiscaxiaController restored_first, restored_second;
+  PixelK80Controller restored_first, restored_second;
   restored_first.setup();
   restored_second.setup();
-  YiscaxiaPairs ra(&restored_first), rb(&restored_second);
+  PixelK80Pairs ra(&restored_first), rb(&restored_second);
   initialize(ra, &first_device);
   initialize(rb, &second_device);
-  YiscaxiaNumber rar(&restored_first, YiscaxiaSetting::TRANSMISSION_ATTEMPTS), rbr(&restored_second,
-      YiscaxiaSetting::TRANSMISSION_ATTEMPTS);
-  YiscaxiaNumber ras(&restored_first, YiscaxiaSetting::CHANNEL_SPACING), rbs(&restored_second,
-      YiscaxiaSetting::CHANNEL_SPACING);
-  initialize(rar, YiscaxiaSetting::TRANSMISSION_ATTEMPTS, &first_device);
-  initialize(rbr, YiscaxiaSetting::TRANSMISSION_ATTEMPTS, &second_device);
-  initialize(ras, YiscaxiaSetting::CHANNEL_SPACING, &first_device);
-  initialize(rbs, YiscaxiaSetting::CHANNEL_SPACING, &second_device);
+  PixelK80Number rar(&restored_first, PixelK80Setting::TRANSMISSION_ATTEMPTS), rbr(&restored_second,
+      PixelK80Setting::TRANSMISSION_ATTEMPTS);
+  PixelK80Number ras(&restored_first, PixelK80Setting::CHANNEL_SPACING), rbs(&restored_second,
+      PixelK80Setting::CHANNEL_SPACING);
+  initialize(rar, PixelK80Setting::TRANSMISSION_ATTEMPTS, &first_device);
+  initialize(rbr, PixelK80Setting::TRANSMISSION_ATTEMPTS, &second_device);
+  initialize(ras, PixelK80Setting::CHANNEL_SPACING, &first_device);
+  initialize(rbs, PixelK80Setting::CHANNEL_SPACING, &second_device);
   CHECK(ra.state == "2A,-,2C" && rb.state == "3A,3B");
   CHECK(rar.state == 7 && rbr.state == 9 && ras.state == 1234 && rbs.state == 2345);
   for (const auto &spec : NUMBER_CASES) {
-    if (spec.setting != YiscaxiaSetting::RAINBOW_STEP_DEGREES &&
-        spec.setting != YiscaxiaSetting::RAINBOW_STEP_SPACING) continue;
-    YiscaxiaNumber first_field(&restored_first, spec.setting), second_field(&restored_second, spec.setting);
+    if (spec.setting != PixelK80Setting::RAINBOW_STEP_DEGREES &&
+        spec.setting != PixelK80Setting::RAINBOW_STEP_SPACING) continue;
+    PixelK80Number first_field(&restored_first, spec.setting), second_field(&restored_second, spec.setting);
     initialize(first_field, spec.setting, &first_device);
     initialize(second_field, spec.setting, &second_device);
     CHECK(first_field.state == (spec.record_size == 5 ? 234567 : 31));
@@ -178,7 +178,7 @@ int isolation() {
   CHECK(ra.configuration_status() == "Saved" && rb.configuration_status() == "Saved");
   CHECK(prefs.saves == saves);
   const auto requests = prefs.requests.size();
-  YiscaxiaNumber unknown(&first, static_cast<YiscaxiaSetting>(99));
+  PixelK80Number unknown(&first, static_cast<PixelK80Setting>(99));
   unknown.setup();
   CHECK(unknown.is_failed() && unknown.configuration_status() == "Unknown configuration setting");
   CHECK(prefs.requests.size() == requests && prefs.saves == saves);
@@ -191,7 +191,7 @@ int pairs_case(const std::string &scenario) {
   const uint32_t key = PAIRS_HASH ^ PAIRS_SALT;
   Controller parent;
   parent.setup();
-  YiscaxiaPairs field(&parent);
+  PixelK80Pairs field(&parent);
   initialize(field);
   CHECK((prefs.requests == std::vector<std::pair<uint32_t, size_t>> {{key, 257}}));
   CHECK(prefs.loads == prefs.requests && field.configuration_status() == "Ready");
@@ -240,9 +240,9 @@ int pairs_case(const std::string &scenario) {
       prefs.durable[key] = record;
       prefs.reboot();
       const auto saves = prefs.saves;
-      YiscaxiaController restored;
+      PixelK80Controller restored;
       restored.setup();
-      YiscaxiaPairs rebooted(&restored);
+      PixelK80Pairs rebooted(&restored);
       initialize(rebooted);
       CHECK(rebooted.state == original && restored.pairs() == original);
       CHECK(prefs.durable[key] == record);
@@ -281,9 +281,9 @@ int pairs_case(const std::string &scenario) {
     CHECK(uncertain_durable(scenario) ? prefs.durable[key] == pair_record("3A") : prefs.durable[key] == old_record);
     // A failed rollback can leave the new durable table while runtime keeps the old one.
     prefs.reboot();
-    YiscaxiaController after_failure;
+    PixelK80Controller after_failure;
     after_failure.setup();
-    YiscaxiaPairs observed(&after_failure);
+    PixelK80Pairs observed(&after_failure);
     initialize(observed);
     CHECK(observed.state == (uncertain_durable(scenario) ? "3A" : accepted));
     CHECK(observed.configuration_status() == "Saved");
@@ -300,9 +300,9 @@ int pairs_case(const std::string &scenario) {
   const auto final_value = field.state;
   const auto saves = prefs.saves;
   prefs.reboot();
-  YiscaxiaController restored;
+  PixelK80Controller restored;
   restored.setup();
-  YiscaxiaPairs rebooted(&restored);
+  PixelK80Pairs rebooted(&restored);
   initialize(rebooted);
   CHECK(rebooted.state == final_value && restored.pairs() == final_value);
   CHECK(rebooted.configuration_status() == "Saved");
@@ -311,7 +311,7 @@ int pairs_case(const std::string &scenario) {
   CHECK((prefs.durable[UNRELATED] == std::vector<uint8_t> {42, 99}));
   return 0;
 }
-int number_case(YiscaxiaSetting setting, const std::string &scenario) {
+int number_case(PixelK80Setting setting, const std::string &scenario) {
   const auto *spec = std::find_if(std::begin(NUMBER_CASES), std::end(NUMBER_CASES),
   [setting](const NumberCase & entry) { return entry.setting == setting; });
   CHECK(spec != std::end(NUMBER_CASES));
@@ -319,9 +319,9 @@ int number_case(YiscaxiaSetting setting, const std::string &scenario) {
   ESPPreferences prefs;
   attach(prefs);
   const uint32_t key = NUMBER_HASH ^ spec->salt;
-  YiscaxiaController parent;
+  PixelK80Controller parent;
   parent.setup();
-  YiscaxiaNumber field(&parent, setting);
+  PixelK80Number field(&parent, setting);
   initialize(field, setting);
   const uint32_t original = spec->default_value;
   const uint32_t candidate = spec->maximum;
@@ -351,9 +351,9 @@ int number_case(YiscaxiaSetting setting, const std::string &scenario) {
       prefs.durable[key] = record;
       prefs.reboot();
       const auto saves = prefs.saves;
-      YiscaxiaController restored;
+      PixelK80Controller restored;
       restored.setup();
-      YiscaxiaNumber rebooted(&restored, setting);
+      PixelK80Number rebooted(&restored, setting);
       initialize(rebooted, setting);
       CHECK(rebooted.state == original && restored.configuration_setting(setting) == original);
       CHECK(prefs.durable[key] == record);
@@ -393,9 +393,9 @@ int number_case(YiscaxiaSetting setting, const std::string &scenario) {
       CHECK(field.configuration_status() == expected_status);
       CHECK(prefs.durable[key] == number_record(uncertain_durable(scenario) ? candidate : original, spec->record_size));
       prefs.reboot();
-      YiscaxiaController after_failure;
+      PixelK80Controller after_failure;
       after_failure.setup();
-      YiscaxiaNumber observed(&after_failure, setting);
+      PixelK80Number observed(&after_failure, setting);
       initialize(observed, setting);
       CHECK(observed.state == (uncertain_durable(scenario) ? candidate : original));
       CHECK(observed.configuration_status() == "Saved");
@@ -408,9 +408,9 @@ int number_case(YiscaxiaSetting setting, const std::string &scenario) {
   const auto accepted = field.state;
   const auto saves = prefs.saves;
   prefs.reboot();
-  YiscaxiaController restored;
+  PixelK80Controller restored;
   restored.setup();
-  YiscaxiaNumber rebooted(&restored, setting);
+  PixelK80Number rebooted(&restored, setting);
   initialize(rebooted, setting);
   CHECK(rebooted.state == accepted && restored.configuration_setting(setting) == accepted);
   CHECK(rebooted.configuration_status() == "Saved");

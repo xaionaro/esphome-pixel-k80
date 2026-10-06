@@ -3,13 +3,13 @@
 #include "esphome/components/light/light_state.h"
 #include "esphome/components/light/light_output.h"
 
-namespace esphome::yiscaxia {
+namespace esphome::pixel_k80 {
 
-class YiscaxiaController;
+class PixelK80Controller;
 
-class YiscaxiaLightState : public light::LightState {
+class PixelK80LightState : public light::LightState {
  public:
-  explicit YiscaxiaLightState(light::LightOutput *output) : LightState(output) {}
+  explicit PixelK80LightState(light::LightOutput *output) : LightState(output) {}
   void setup() override {
     this->initial_restore_update_pending_ = true;
     light::LightState::setup();
@@ -23,7 +23,7 @@ class YiscaxiaLightState : public light::LightState {
   }
 
  protected:
-  friend class YiscaxiaController;
+  friend class PixelK80Controller;
   void cancel_pending_output_for_remap() {
     if (!this->transformer_ && !this->next_write_) return;
     const auto target = this->transformer_ ? this->transformer_->get_target_values() : this->current_values;
@@ -35,4 +35,4 @@ class YiscaxiaLightState : public light::LightState {
   bool initial_restore_update_pending_{false};
 };
 
-}  // namespace esphome::yiscaxia
+}  // namespace esphome::pixel_k80

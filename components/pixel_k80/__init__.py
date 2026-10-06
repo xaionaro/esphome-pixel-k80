@@ -26,15 +26,15 @@ AUTO_LOAD = ["light", "number", "text", "spi"]
 DEPENDENCIES = ["spi"]
 MULTI_CONF = True
 
-yiscaxia_ns = cg.esphome_ns.namespace("yiscaxia")
-YiscaxiaController = yiscaxia_ns.class_("YiscaxiaController", cg.Component)
-YiscaxiaTransport = yiscaxia_ns.class_("YiscaxiaTransport", cg.Component)
-Md7105Transport = yiscaxia_ns.class_("Md7105Transport", YiscaxiaTransport, spi.SPIDevice)
-YiscaxiaLightOutput = yiscaxia_ns.class_("YiscaxiaLightOutput", light.LightOutput)
-YiscaxiaLightState = yiscaxia_ns.class_("YiscaxiaLightState", light.LightState)
-YiscaxiaPairs = yiscaxia_ns.class_("YiscaxiaPairs", text.Text, cg.Component)
-YiscaxiaNumber = yiscaxia_ns.class_("YiscaxiaNumber", number.Number, cg.Component)
-YiscaxiaSetting = yiscaxia_ns.enum("YiscaxiaSetting", is_class=True)
+pixel_k80_ns = cg.esphome_ns.namespace("pixel_k80")
+PixelK80Controller = pixel_k80_ns.class_("PixelK80Controller", cg.Component)
+PixelK80Transport = pixel_k80_ns.class_("PixelK80Transport", cg.Component)
+Md7105Transport = pixel_k80_ns.class_("Md7105Transport", PixelK80Transport, spi.SPIDevice)
+PixelK80LightOutput = pixel_k80_ns.class_("PixelK80LightOutput", light.LightOutput)
+PixelK80LightState = pixel_k80_ns.class_("PixelK80LightState", light.LightState)
+PixelK80Pairs = pixel_k80_ns.class_("PixelK80Pairs", text.Text, cg.Component)
+PixelK80Number = pixel_k80_ns.class_("PixelK80Number", number.Number, cg.Component)
+PixelK80Setting = pixel_k80_ns.enum("PixelK80Setting", is_class=True)
 
 BUILTIN_EFFECT_NAMES: tuple[str, ...] = (
     "SOS", "Lightning 1", "Lightning 2", "TV Screen", "Police", "Ambulance",
@@ -81,8 +81,8 @@ def declare_entities(config: ConfigType) -> ConfigType:
     config[CONF_POSITIONS] = [
         light.RGB_LIGHT_SCHEMA.extend(
             {
-                cv.GenerateID(CONF_ID): cv.declare_id(YiscaxiaLightState),
-                cv.GenerateID(CONF_OUTPUT_ID): cv.declare_id(YiscaxiaLightOutput),
+                cv.GenerateID(CONF_ID): cv.declare_id(PixelK80LightState),
+                cv.GenerateID(CONF_OUTPUT_ID): cv.declare_id(PixelK80LightOutput),
             }
         )(
             {
@@ -99,7 +99,7 @@ def declare_entities(config: ConfigType) -> ConfigType:
     # Final validation resolves action names from metadata; setup_state owns runtime effects.
     for position in config[CONF_POSITIONS]:
         position[CONF_EFFECTS] = [
-            {"yiscaxia_builtin": {CONF_NAME: name}} for name in BUILTIN_EFFECT_NAMES
+            {"pixel_k80_builtin": {CONF_NAME: name}} for name in BUILTIN_EFFECT_NAMES
         ]
     return config
 
@@ -107,25 +107,25 @@ def declare_entities(config: ConfigType) -> ConfigType:
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
-            cv.Required(CONF_ID): cv.declare_id(YiscaxiaController),
+            cv.Required(CONF_ID): cv.declare_id(PixelK80Controller),
             cv.Required(CONF_TRANSPORT): TRANSPORT_SCHEMA,
-            cv.Optional(CONF_NAME_PREFIX, default="Yiscaxia"): cv.string_strict,
+            cv.Optional(CONF_NAME_PREFIX, default="Pixel K80"): cv.string_strict,
             cv.Optional(CONF_POSITION_CAPACITY, default=12): cv.int_range(min=6, max=64),
             cv.Optional(CONF_INITIAL_PAIRS, default="1A,1B,1C,1D,1E,1F"): validate_pairs,
             cv.Required(CONF_AVAILABLE_PAIRS): text.text_schema(
-                YiscaxiaPairs, entity_category="config", mode="TEXT"
+                PixelK80Pairs, entity_category="config", mode="TEXT"
             ).extend(cv.COMPONENT_SCHEMA),
             cv.Required(CONF_TRANSMISSION_ATTEMPTS): number.number_schema(
-                YiscaxiaNumber, entity_category="config"
+                PixelK80Number, entity_category="config"
             ).extend(cv.COMPONENT_SCHEMA),
             cv.Required(CONF_CHANNEL_SPACING): number.number_schema(
-                YiscaxiaNumber, entity_category="config", unit_of_measurement="ms"
+                PixelK80Number, entity_category="config", unit_of_measurement="ms"
             ).extend(cv.COMPONENT_SCHEMA),
             cv.Optional(CONF_RAINBOW_DEGREES_PER_STEP): number.number_schema(
-                YiscaxiaNumber, entity_category="config", unit_of_measurement="°"
+                PixelK80Number, entity_category="config", unit_of_measurement="°"
             ).extend(cv.COMPONENT_SCHEMA),
             cv.Optional(CONF_RAINBOW_STEP_SPACING): number.number_schema(
-                YiscaxiaNumber, entity_category="config", unit_of_measurement="ms"
+                PixelK80Number, entity_category="config", unit_of_measurement="ms"
             ).extend(cv.COMPONENT_SCHEMA),
         }
     ).extend(cv.COMPONENT_SCHEMA),
@@ -136,7 +136,7 @@ CONFIG_SCHEMA = cv.All(
 
 def final_validate(config: ConfigType) -> ConfigType:
     spi.final_validate_device_schema(
-        "yiscaxia", require_mosi=True, require_miso=True
+        "pixel_k80", require_mosi=True, require_miso=True
     )(config[CONF_TRANSPORT])
     return config
 
@@ -161,16 +161,16 @@ async def to_code(config: ConfigType) -> None:
     )
     await cg.register_component(pairs, config[CONF_AVAILABLE_PAIRS])
     for key, selector in (
-        (CONF_TRANSMISSION_ATTEMPTS, YiscaxiaSetting.TRANSMISSION_ATTEMPTS),
-        (CONF_CHANNEL_SPACING, YiscaxiaSetting.CHANNEL_SPACING),
-        (CONF_RAINBOW_DEGREES_PER_STEP, YiscaxiaSetting.RAINBOW_STEP_DEGREES),
-        (CONF_RAINBOW_STEP_SPACING, YiscaxiaSetting.RAINBOW_STEP_SPACING),
+        (CONF_TRANSMISSION_ATTEMPTS, PixelK80Setting.TRANSMISSION_ATTEMPTS),
+        (CONF_CHANNEL_SPACING, PixelK80Setting.CHANNEL_SPACING),
+        (CONF_RAINBOW_DEGREES_PER_STEP, PixelK80Setting.RAINBOW_STEP_DEGREES),
+        (CONF_RAINBOW_STEP_SPACING, PixelK80Setting.RAINBOW_STEP_SPACING),
     ):
         if key not in config:
             continue
         setting = await number.new_number(
             config[key], parent, selector, min_value=1,
-            max_value=cg.RawExpression(f"yiscaxia::configuration_setting_max({selector})"), step=1,
+            max_value=cg.RawExpression(f"pixel_k80::configuration_setting_max({selector})"), step=1,
         )
         await cg.register_component(setting, config[key])
     for position, entity in enumerate(config[CONF_POSITIONS]):

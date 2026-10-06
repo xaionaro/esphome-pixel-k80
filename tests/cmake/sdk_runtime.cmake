@@ -3,9 +3,9 @@
 if(NOT EXISTS "${ESPHOME_SDK_ROOT}/esphome/components/light/light_state.cpp")
   message(FATAL_ERROR "Full SDK checks require ESPHOME_SDK_ROOT containing the ESPHome package")
 endif()
-set(YISCAXIA_TEST_DIR "${CMAKE_CURRENT_LIST_DIR}/..")
+set(PIXEL_K80_TEST_DIR "${CMAKE_CURRENT_LIST_DIR}/..")
 
-function(yiscaxia_sdk_extract source start stop result)
+function(pixel_k80_sdk_extract source start stop result)
   string(FIND "${source}" "${start}" begin)
   string(FIND "${source}" "${stop}" end)
   if(begin LESS 0 OR end LESS_EQUAL begin)
@@ -29,7 +29,7 @@ foreach(boundary IN ITEMS
   string(REPLACE "|" ";" names "${boundary}")
   list(GET names 0 start)
   list(GET names 1 stop)
-  yiscaxia_sdk_extract("${light_source}" "${start}" "${stop}" section)
+  pixel_k80_sdk_extract("${light_source}" "${start}" "${stop}" section)
   string(APPEND ordering "${section}\n")
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/sdk-light-ordering.h" "${ordering}")
@@ -41,20 +41,20 @@ foreach(boundary IN ITEMS
   string(REPLACE "|" ";" names "${boundary}")
   list(GET names 0 start)
   list(GET names 1 stop)
-  yiscaxia_sdk_extract("${light_source}" "${start}" "${stop}" section)
+  pixel_k80_sdk_extract("${light_source}" "${start}" "${stop}" section)
   string(APPEND restore "${section}\n")
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/sdk-light-restore.h" "${restore}")
 file(READ "${ESPHOME_SDK_ROOT}/esphome/core/helpers.cpp" helpers_source)
-yiscaxia_sdk_extract("${helpers_source}" "void rgb_to_hsv("
+pixel_k80_sdk_extract("${helpers_source}" "void rgb_to_hsv("
     "uint8_t HighFrequencyLoopRequester::" hsv)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/sdk-hsv.h" "${hsv}")
-yiscaxia_sdk_extract("${helpers_source}" "__attribute__((noinline, cold)) void *callback_manager_grow("
+pixel_k80_sdk_extract("${helpers_source}" "__attribute__((noinline, cold)) void *callback_manager_grow("
     "static const uint16_t CRC16_A001_LE_LUT_L" callbacks)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/sdk-callbacks.h" "${callbacks}")
 
-add_library(yiscaxia_sdk_runtime STATIC
-    "${YISCAXIA_TEST_DIR}/sdk_light_runtime.cpp"
+add_library(pixel_k80_sdk_runtime STATIC
+    "${PIXEL_K80_TEST_DIR}/sdk_light_runtime.cpp"
     "${ESPHOME_SDK_ROOT}/esphome/components/light/light_call.cpp"
     "${ESPHOME_SDK_ROOT}/esphome/components/light/light_color_values.cpp"
     "${ESPHOME_SDK_ROOT}/esphome/components/light/light_output.cpp"
@@ -64,14 +64,14 @@ add_library(yiscaxia_sdk_runtime STATIC
     "${ESPHOME_SDK_ROOT}/esphome/components/number/number_call.cpp"
     "${ESPHOME_SDK_ROOT}/esphome/components/number/number.cpp"
     "${ESPHOME_SDK_ROOT}/esphome/core/entity_base.cpp")
-target_include_directories(yiscaxia_sdk_runtime PUBLIC
-    "${YISCAXIA_TEST_DIR}/../components/yiscaxia"
-    "${YISCAXIA_TEST_DIR}/sdk" "${YISCAXIA_TEST_DIR}"
+target_include_directories(pixel_k80_sdk_runtime PUBLIC
+    "${PIXEL_K80_TEST_DIR}/../components/pixel_k80"
+    "${PIXEL_K80_TEST_DIR}/sdk" "${PIXEL_K80_TEST_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}")
-target_include_directories(yiscaxia_sdk_runtime SYSTEM PUBLIC "${ESPHOME_SDK_ROOT}")
-target_compile_features(yiscaxia_sdk_runtime PUBLIC cxx_std_20)
-target_compile_definitions(yiscaxia_sdk_runtime PUBLIC USE_LIGHT USE_CONTROLLER_REGISTRY CONTROLLER_REGISTRY_MAX=4 ESPHOME_ENTITY_LIGHT_COUNT=0)
-target_compile_options(yiscaxia_sdk_runtime PRIVATE -Wall -Wextra -Werror
+target_include_directories(pixel_k80_sdk_runtime SYSTEM PUBLIC "${ESPHOME_SDK_ROOT}")
+target_compile_features(pixel_k80_sdk_runtime PUBLIC cxx_std_20)
+target_compile_definitions(pixel_k80_sdk_runtime PUBLIC USE_LIGHT USE_CONTROLLER_REGISTRY CONTROLLER_REGISTRY_MAX=4 ESPHOME_ENTITY_LIGHT_COUNT=0)
+target_compile_options(pixel_k80_sdk_runtime PRIVATE -Wall -Wextra -Werror
     -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${ESPHOME_SDK_ROOT}/esphome/components/light/light_state.cpp"

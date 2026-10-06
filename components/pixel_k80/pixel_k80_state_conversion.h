@@ -4,7 +4,7 @@
 #include <cmath>
 #include "k80_controller_protocol.h"
 
-namespace esphome::yiscaxia {
+namespace esphome::pixel_k80 {
 
 inline bool unit_value_valid(float value) { return std::isfinite(value) && value >= 0 && value <= 1; }
 
@@ -51,4 +51,4 @@ inline bool ct_to_state(float mireds, float intensity,
   return true;
 }
 
-}  // namespace esphome::yiscaxia
+}  // namespace esphome::pixel_k80

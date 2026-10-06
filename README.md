@@ -1,14 +1,25 @@
-# Yiscaxia / Pixel K80 for ESPHome
+# Pixel K80 RGB lighting integration for ESPHome & Home Assistant
 
-An external component that exposes Pixel K80/Yiscaxia RF lights as native
+An external component that exposes Pixel K80 RF lights as native
 ESPHome lights. The light and packet protocol are separate from the radio
 transport. The supplied transport option is `md7105`: an MD7105-SY carrier
 with an A7105 radio, using four-wire SPI at **mode 0, 1 MHz**. Other transports
-can implement `YiscaxiaTransport`; no other radio backend is currently provided.
+can implement `PixelK80Transport`; no other radio backend is currently provided.
+
+The manufacturer markets the light as **PIXEL K80 RGB**, model **K80RGB**:
+[official K80 product page](https://www.pixelhk.com/en/product/K80rgb-Metal-Light-3).
+The component is named `pixel_k80`, and the project is `esphome-pixel-k80`.
 
 ## Use
 
 Use the complete [XIAO ESP32-C5 example](examples/xiao-esp32c5.yaml).
+To create a checkout with the project name from the current repository URL:
+
+```sh
+git clone https://github.com/xaionaro/esphome-yiscaxia.git esphome-pixel-k80
+cd esphome-pixel-k80
+```
+
 Create `examples/secrets.yaml` containing `wifi_ssid` and `wifi_password`,
 then run:
 
@@ -27,8 +38,8 @@ the local checkout path:
 external_components:
   - source:
       type: local
-      path: /path/to/esphome-yiscaxia/components
-    components: [yiscaxia]
+      path: /path/to/esphome-pixel-k80/components
+    components: [pixel_k80]
 
 spi:
   id: radio_spi
@@ -36,7 +47,7 @@ spi:
   mosi_pin: GPIO10
   miso_pin: GPIO9
 
-yiscaxia:
+pixel_k80:
   id: pixel_controller
   transport:
     type: md7105
@@ -96,7 +107,7 @@ esphome:
 | Channel transmission spacing | Minimum TX-start gap per RF channel, **1–65535 ms**, default **150 ms** |
 
 The pool has **12** positions by default; set `position_capacity: 6..64`
-and `name_prefix: Pixel K80` under `yiscaxia:` to change its size/names.
+and `name_prefix: Pixel K80` under `pixel_k80:` to change its size/names.
 The initial table is `1A,1B,1C,1D,1E,1F`; override it with `initial_pairs:`.
 Each table entry addresses the corresponding position light. For example,
 `1A,-,2D` enables positions 1 and 3, keeping position 2 disabled.
@@ -226,7 +237,7 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 
 # Also exercise the installed SDK and real schema/code generation:
-cmake -S . -B build-full -DYISCAXIA_FULL_CHECKS=ON \
+cmake -S . -B build-full -DPIXEL_K80_FULL_CHECKS=ON \
   -DESPHOME_EXECUTABLE=/path/to/venv/bin/esphome \
   -DESPHOME_SDK_ROOT=/path/to/venv/lib/python3.13/site-packages
 cmake --build build-full -j
@@ -238,7 +249,7 @@ Full checks additionally run the actual SDK light/configuration calls,
 controller, persistence failure/reboot cases, MD7105 adapter and CLI schema/codegen.
 They do not replace RF hardware checks.
 
-`components/yiscaxia/__init__.py` validates configuration and generates native
+`components/pixel_k80/__init__.py` validates configuration and generates native
 entities; the controller/light/configuration classes own per-instance state.
-`YiscaxiaTransport` separates that policy from the MD7105 SPI backend and pure
+`PixelK80Transport` separates that policy from the MD7105 SPI backend and pure
 packet/transaction headers. `tests/` checks each layer and its SDK integration.

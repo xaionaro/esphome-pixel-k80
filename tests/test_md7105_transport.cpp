@@ -23,7 +23,7 @@ void SPIComponent::unregister_device(SPIClient *) { std::abort(); }
 }  // namespace esphome::spi
 
 namespace {
-using esphome::yiscaxia::Md7105Transport;
+using esphome::pixel_k80::Md7105Transport;
 struct Radio : esphome::spi::SPIDelegate {
   std::array<uint8_t, 64> registers{};
   std::array<uint8_t, 4> id{};
@@ -95,7 +95,7 @@ void failed_setup(Transport &transport) {
   if (transport.radio.available) {
     CHECK(transport.radio.operations.back() == std::vector<uint8_t> {A7105_CMD_STANDBY});
   }
-  yiscaxia_tx_packet packet{};
+  pixel_k80_tx_packet packet{};
   const auto count = transport.radio.operations.size();
   CHECK(transport.transmit(packet, 0).error == -1);
   CHECK(transport.radio.operations.size() == count);
@@ -105,7 +105,7 @@ void failed_setup(Transport &transport) {
 int main() {
   sdk_test::set_time_us(0);
   Transport transport;
-  yiscaxia_tx_packet packet{};
+  pixel_k80_tx_packet packet{};
   CHECK(k80_controller_build_packet(3, 0, packet.bytes) == 0);
   CHECK(transport.transmit(packet, 0).error == -1);
   CHECK(transport.radio.operations.empty());

@@ -1,8 +1,8 @@
 #include "sdk_runtime.h"
 #include "test_check.h"
-#include "yiscaxia_light.h"
+#include "pixel_k80_light.h"
 #define protected public
-#include "yiscaxia_pairs.h"
+#include "pixel_k80_pairs.h"
 #undef protected
 #include "esphome/core/preferences.h"
 #include "esphome/core/controller_registry.h"
@@ -15,9 +15,9 @@
 
 using namespace esphome;
 using namespace esphome::light;
-using namespace esphome::yiscaxia;
+using namespace esphome::pixel_k80;
 
-class TestController : public YiscaxiaController {
+class TestController : public PixelK80Controller {
  public:
   const k80_controller_pending &pending(size_t i) const { return pending_[i]; }
   const k80_controller_queue &queue() const { return queue_; }
@@ -26,17 +26,17 @@ class TestController : public YiscaxiaController {
 
 // Only the hardware boundary is substituted. TestController, output, LightCall,
 // deferred LightState ordering and preference restore execute production code.
-class Transport : public YiscaxiaTransport {
+class Transport : public PixelK80Transport {
  public:
-  struct Transmission { yiscaxia_tx_packet packet; int slot; };
+  struct Transmission { pixel_k80_tx_packet packet; int slot; };
   bool available{true};
   uint64_t now{};
-  yiscaxia_tx_result result{};
+  pixel_k80_tx_result result{};
   std::vector<Transmission> transmissions;
   Transport() { result.restored = 1; result.trigger_attempted = 1; }
   bool ready() const override { return available; }
   uint64_t now_us() const override { return now; }
-  yiscaxia_tx_result transmit(const yiscaxia_tx_packet &packet, int slot) override {
+  pixel_k80_tx_result transmit(const pixel_k80_tx_packet &packet, int slot) override {
     transmissions.push_back({packet, slot});
     return result;
   }
@@ -72,7 +72,7 @@ static int semantic_and_effects() {
   TestController controller;
   Transport transport;
   initialize(controller, transport);
-  YiscaxiaLightOutput output(&controller, 0), disabled_output(&controller, 11);
+  PixelK80LightOutput output(&controller, 0), disabled_output(&controller, 11);
   sdk_test::LightState state(&output), disabled(&disabled_output);
   configure_light(state, 0x8100);
   configure_light(disabled, 0x810b);
@@ -228,7 +228,7 @@ static int rainbow_startup() {
     TestController controller;
     Transport transport;
     initialize(controller, transport);
-    YiscaxiaLightOutput output(&controller, 0);
+    PixelK80LightOutput output(&controller, 0);
     sdk_test::LightState state(&output);
     configure_light(state, 0x8400);
     controller.loop();
@@ -264,7 +264,7 @@ static int rainbow_color_modes() {
     TestController controller;
     Transport transport;
     initialize(controller, transport);
-    YiscaxiaLightOutput output(&controller, 0);
+    PixelK80LightOutput output(&controller, 0);
     sdk_test::LightState state(&output);
     configure_light(state, 0x8500);
     controller.loop();
@@ -317,11 +317,11 @@ static int rainbow_configuration() {
   TestController controller;
   Transport transport;
   initialize(controller, transport);
-  CHECK(controller.configuration_setting(YiscaxiaSetting::RAINBOW_STEP_DEGREES) == 1);
-  CHECK(controller.configuration_setting(YiscaxiaSetting::RAINBOW_STEP_SPACING) == 1000);
-  CHECK(controller.set_configuration_setting(YiscaxiaSetting::RAINBOW_STEP_DEGREES, 30));
-  CHECK(controller.set_configuration_setting(YiscaxiaSetting::RAINBOW_STEP_SPACING, 200));
-  YiscaxiaLightOutput output(&controller, 0);
+  CHECK(controller.configuration_setting(PixelK80Setting::RAINBOW_STEP_DEGREES) == 1);
+  CHECK(controller.configuration_setting(PixelK80Setting::RAINBOW_STEP_SPACING) == 1000);
+  CHECK(controller.set_configuration_setting(PixelK80Setting::RAINBOW_STEP_DEGREES, 30));
+  CHECK(controller.set_configuration_setting(PixelK80Setting::RAINBOW_STEP_SPACING, 200));
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x8600);
   controller.loop();
@@ -339,8 +339,8 @@ static int rainbow_configuration() {
   state.loop();
   CHECK(controller.pending(0).state.hue == 150 && controller.pending(0).remaining == 1);
   controller.abort(0);
-  CHECK(controller.set_configuration_setting(YiscaxiaSetting::RAINBOW_STEP_DEGREES, 240));
-  CHECK(controller.set_configuration_setting(YiscaxiaSetting::RAINBOW_STEP_SPACING, 300));
+  CHECK(controller.set_configuration_setting(PixelK80Setting::RAINBOW_STEP_DEGREES, 240));
+  CHECK(controller.set_configuration_setting(PixelK80Setting::RAINBOW_STEP_SPACING, 300));
   sdk_test::set_time_ms(499);
   state.loop();
   CHECK(!controller.endpoint_pending(0));
@@ -360,7 +360,7 @@ static int rainbow_and_restore() {
   TestController controller;
   Transport transport;
   initialize(controller, transport);
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x8200);
   controller.loop();
@@ -405,7 +405,7 @@ static int rainbow_and_restore() {
     CHECK(controller.pending(0).remaining == 1);
     controller.abort(0);
   }
-  auto *rainbow = static_cast<YiscaxiaCustomRainbowEffect *>(state.get_effects()[9]);
+  auto *rainbow = static_cast<PixelK80CustomRainbowEffect *>(state.get_effects()[9]);
   CHECK(rainbow->hue() == 0); // 120 + 2 + 238 degrees wraps exactly.
   struct NestedManual : LightTargetStateReachedListener {
     LightState *state{};
@@ -428,7 +428,7 @@ static int rainbow_and_restore() {
   reboot_transport.available = false;
   initialize(reboot, reboot_transport);
   CHECK(reboot.set_transmission_setting(K80_CONTROLLER_SETTING_ATTEMPTS, 7));
-  YiscaxiaLightOutput reboot_output(&reboot, 0);
+  PixelK80LightOutput reboot_output(&reboot, 0);
   sdk_test::LightState restored(&reboot_output);
   configure_light(restored, 0x8200);
   CHECK(restored.remote_values.is_on() && restored.get_current_effect_index() == 10);
@@ -450,7 +450,7 @@ static int rainbow_and_restore() {
   TestController off_reboot;
   Transport off_transport;
   initialize(off_reboot, off_transport);
-  YiscaxiaLightOutput off_output(&off_reboot, 0);
+  PixelK80LightOutput off_output(&off_reboot, 0);
   sdk_test::LightState off_state(&off_output);
   configure_light(off_state, 0x8200);
   off_reboot.loop();
@@ -468,10 +468,10 @@ static int registry_and_static_restore() {
   TestController controller;
   Transport transport;
   initialize(controller, transport, table);
-  std::array<std::unique_ptr<YiscaxiaLightOutput>, 12> outputs;
+  std::array<std::unique_ptr<PixelK80LightOutput>, 12> outputs;
   std::array<std::unique_ptr<sdk_test::LightState>, 12> lights;
   for (size_t i = 0; i < lights.size(); ++i) {
-    outputs[i] = std::make_unique<YiscaxiaLightOutput>(&controller, i);
+    outputs[i] = std::make_unique<PixelK80LightOutput>(&controller, i);
     lights[i] = std::make_unique<sdk_test::LightState>(outputs[i].get());
     configure_light(*lights[i], 0x8300 + i);
     CHECK(lights[i]->get_effects().size() == 10);
@@ -542,7 +542,7 @@ static int registry_and_static_restore() {
     TestController restored_controller;
     Transport restored_transport;
     initialize(restored_controller, restored_transport, table);
-    YiscaxiaLightOutput restored_output(&restored_controller, i);
+    PixelK80LightOutput restored_output(&restored_controller, i);
     sdk_test::LightState restored(&restored_output);
     configure_light(restored, 0x8300 + i);
     CHECK(restored.remote_values.is_on() && restored.get_current_effect_index() == (i < 2 ? 0 : i - 1));
@@ -564,7 +564,7 @@ static int registry_and_static_restore() {
   TestController none_controller;
   Transport none_transport;
   initialize(none_controller, none_transport, table);
-  YiscaxiaLightOutput none_output(&none_controller, 10);
+  PixelK80LightOutput none_output(&none_controller, 10);
   sdk_test::LightState none(&none_output);
   configure_light(none, 0x830a);
   none_controller.loop();
@@ -574,7 +574,7 @@ static int registry_and_static_restore() {
   TestController disabled_controller;
   Transport disabled_transport;
   initialize(disabled_controller, disabled_transport, "1A");
-  YiscaxiaLightOutput disabled_output(&disabled_controller, 10);
+  PixelK80LightOutput disabled_output(&disabled_controller, 10);
   sdk_test::LightState disabled(&disabled_output);
   configure_light(disabled, 0x830a);
   disabled_controller.loop();
@@ -593,13 +593,13 @@ static int pairs_failure_preserves_work() {
     TestController controller;
     Transport transport;
     initialize(controller, transport, "1A");
-    YiscaxiaLightOutput output(&controller, 0);
+    PixelK80LightOutput output(&controller, 0);
     sdk_test::LightState state(&output);
     configure_light(state, 0x8871);
     controller.loop();
     state.make_call().set_state(true).set_rgb(0, 1, 0).set_transition_length(0).perform();
     state.loop();
-    YiscaxiaPairs pairs(&controller);
+    PixelK80Pairs pairs(&controller);
     pairs.traits.set_min_length(0);
     pairs.traits.set_max_length(255);
     pairs.setup();
@@ -648,7 +648,7 @@ static int pairs_publication_reentry() {
     Transport transport;
     initialize(controller, transport, "1A");
     controller.loop();
-    YiscaxiaPairs pairs(&controller);
+    PixelK80Pairs pairs(&controller);
     pairs.traits.set_min_length(0);
     pairs.traits.set_max_length(255);
     pairs.setup();
@@ -686,13 +686,13 @@ static int pairs_transactions() {
     TestController controller;
     Transport transport;
     initialize(controller, transport, "1A");
-    YiscaxiaLightOutput output(&controller, 0);
+    PixelK80LightOutput output(&controller, 0);
     sdk_test::LightState state(&output);
     configure_light(state, 0x8791);
     controller.loop();
     state.make_call().set_state(true).set_rgb(0, 1, 0).set_transition_length(0).perform();
     state.loop();
-    YiscaxiaPairs pairs(&controller);
+    PixelK80Pairs pairs(&controller);
     pairs.traits.set_min_length(0);
     pairs.traits.set_max_length(255);
     pairs.setup();
@@ -782,7 +782,7 @@ int cancelled_old_and_new(bool preconsume, bool new_command, bool new_off) {
   Transport transport;
   transport.available = false;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x9600);
   state.make_call().set_state(true).set_rgb(1, 0, 0).set_transition_length(0).perform();
@@ -816,7 +816,7 @@ int restore_and_unchanged(unsigned effect) {
   ::TestController seed;
   Transport seed_transport;
   initialize(seed, seed_transport, "1A,1B");
-  YiscaxiaLightOutput seed_output(&seed, 1);
+  PixelK80LightOutput seed_output(&seed, 1);
   sdk_test::LightState seed_state(&seed_output);
   configure_light(seed_state, 0x9611);
   seed_state.make_call().set_state(true).set_rgb(0, 1, 0).set_effect(effect).set_transition_length(0).perform();
@@ -824,7 +824,7 @@ int restore_and_unchanged(unsigned effect) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A,1B");
-  YiscaxiaLightOutput output(&controller, 0), unchanged_output(&controller, 1);
+  PixelK80LightOutput output(&controller, 0), unchanged_output(&controller, 1);
   sdk_test::LightState state(&output), unchanged(&unchanged_output);
   configure_light(state, 0x9610);
   configure_light(unchanged, 0x9611);
@@ -847,7 +847,7 @@ int new_effect_phase() {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x9620);
   state.make_call().set_state(true).set_rgb(1, 0, 0).set_effect(10).set_transition_length(0).perform();
@@ -873,7 +873,7 @@ int later_public_command(unsigned kind) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x9630 + kind);
   state.make_call().set_state(true).set_rgb(1, 0, 0).set_transition_length(0).perform();
@@ -902,7 +902,7 @@ int identical_after_remap(bool roundtrip) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x9660 + roundtrip);
   state.make_call().set_state(true).set_rgb(1, 0, 0).set_transition_length(0).perform();
@@ -925,7 +925,7 @@ int off_policy(bool explicit_off, bool publish, bool consumed) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x9670);
   if (explicit_off) state.make_call().set_state(false).set_transition_length(0).set_publish(publish).perform();
@@ -959,7 +959,7 @@ int initial_callback_origin(bool remap) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   setup_state = &state;
   setup_controller = &controller;
@@ -981,7 +981,7 @@ int setup_listener_replacement(unsigned kind) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   bool armed = true;
   auto replace = [&] {
@@ -1024,7 +1024,7 @@ int preregistration_restore() {
   ::TestController seed;
   Transport seed_transport;
   initialize(seed, seed_transport, "1A");
-  YiscaxiaLightOutput seed_output(&seed, 0);
+  PixelK80LightOutput seed_output(&seed, 0);
   sdk_test::LightState seed_state(&seed_output);
   configure_light(seed_state, 0x96a0);
   seed_state.make_call().set_state(true).set_rgb(0, 1, 0).set_transition_length(0).perform();
@@ -1033,7 +1033,7 @@ int preregistration_restore() {
   Transport transport;
   initialize(controller, transport, "1A");
   CHECK(controller.replace_pairs("2A"));
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x96a0);
   const auto saves = preferences.saves;
@@ -1051,10 +1051,10 @@ int pairs_fifo_startup() {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x96b0);
-  YiscaxiaPairs pairs(&controller);
+  PixelK80Pairs pairs(&controller);
   pairs.traits.set_min_length(0);
   pairs.traits.set_max_length(255);
   pairs.setup();
@@ -1113,7 +1113,7 @@ int cancel_public_work(bool flash, bool publish, bool expired) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A,1B");
-  YiscaxiaLightOutput output(&controller, 0), output2(&controller, 1);
+  PixelK80LightOutput output(&controller, 0), output2(&controller, 1);
   sdk_test::LightState state(&output), unchanged(&output2);
   configure_light(state, 0x9100);
   configure_light(unchanged, 0x9101);
@@ -1179,7 +1179,7 @@ int cancel_effect_work(unsigned effect) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x9200 + effect);
   controller.loop();
@@ -1206,7 +1206,7 @@ int ordinary_postmap_reentry(bool transition) {
   ::TestController controller;
   Transport transport;
   initialize(controller, transport, "1A");
-  YiscaxiaLightOutput output(&controller, 0);
+  PixelK80LightOutput output(&controller, 0);
   sdk_test::LightState state(&output);
   configure_light(state, 0x9300);
   controller.loop();
@@ -1249,14 +1249,14 @@ int ordinary_postmap_reentry(bool transition) {
 }
 static int pairs_queue_resources() {
   using namespace esphome;
-  using namespace esphome::yiscaxia;
+  using namespace esphome::pixel_k80;
   for (const size_t count : {size_t{32}, size_t{257}}) {
     ESPPreferences preferences;
     global_preferences = &preferences;
     host::fault_preferences = &preferences;
-    YiscaxiaController parent;
+    PixelK80Controller parent;
     parent.setup();
-    YiscaxiaPairs pairs(&parent);
+    PixelK80Pairs pairs(&parent);
     pairs.traits.set_min_length(0);
     pairs.traits.set_max_length(255);
     pairs.setup();
@@ -1281,9 +1281,9 @@ static int pairs_queue_resources() {
     ESPPreferences preferences;
     global_preferences = &preferences;
     host::fault_preferences = &preferences;
-    YiscaxiaController parent;
+    PixelK80Controller parent;
     parent.setup();
-    YiscaxiaPairs pairs(&parent);
+    PixelK80Pairs pairs(&parent);
     pairs.traits.set_min_length(0);
     pairs.traits.set_max_length(255);
     pairs.setup();

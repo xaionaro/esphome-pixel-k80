@@ -1,10 +1,10 @@
-#include "yiscaxia_state_conversion.h"
+#include "pixel_k80_state_conversion.h"
 #include "k80_controller_scheduler.h"
 #include "test_check.h"
 #include <limits>
 
 int main() {
-  using namespace esphome::yiscaxia;
+  using namespace esphome::pixel_k80;
   int level = -1;
   CHECK(brightness_to_level(1.0f / 255.0f, &level) && level == 1);
   CHECK(brightness_to_level(0, &level) && level == 0);

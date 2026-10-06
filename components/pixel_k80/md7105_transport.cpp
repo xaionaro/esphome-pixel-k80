@@ -5,9 +5,9 @@
 #include "esp_timer.h"
 #include <cstring>
 
-namespace esphome::yiscaxia {
+namespace esphome::pixel_k80 {
 
-static const char *const TAG = "yiscaxia.md7105";
+static const char *const TAG = "pixel_k80.md7105";
 
 int Md7105Transport::transfer_(void *context, const uint8_t *tx, uint8_t *rx, size_t length) {
   auto *transport = static_cast<Md7105Transport *>(context);
@@ -98,14 +98,14 @@ void Md7105Transport::dump_config() {
   ESP_LOGCONFIG(TAG, "  Radio ready: %s", this->ready_ ? "yes" : "no");
 }
 
-yiscaxia_tx_result Md7105Transport::transmit(const yiscaxia_tx_packet &packet, int slot) {
+pixel_k80_tx_result Md7105Transport::transmit(const pixel_k80_tx_packet &packet, int slot) {
   if (!this->ready_) {
-    yiscaxia_tx_result result{};
-    result.error = YISCAXIA_TX_FAILED;
+    pixel_k80_tx_result result{};
+    result.error = PIXEL_K80_TX_FAILED;
     return result;
   }
   const auto result = a7105_tx_packet_run(&this->bus_, &packet, slot, now_, delay_, nullptr);
-  if (result.error == YISCAXIA_TX_STANDBY_FAILED || result.error == YISCAXIA_TX_RESTORE_FAILED) {
+  if (result.error == PIXEL_K80_TX_STANDBY_FAILED || result.error == PIXEL_K80_TX_RESTORE_FAILED) {
     this->ready_ = false;
     this->mark_failed();
     ESP_LOGE(TAG, "Radio restoration failed; transport stopped");
@@ -113,4 +113,4 @@ yiscaxia_tx_result Md7105Transport::transmit(const yiscaxia_tx_packet &packet, i
   return result;
 }
 
-}  // namespace esphome::yiscaxia
+}  // namespace esphome::pixel_k80
